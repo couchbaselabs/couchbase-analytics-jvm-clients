@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,11 @@
 package com.couchbase.analytics.client.java;
 
 import com.couchbase.analytics.client.java.internal.ThreadSafe;
-import com.couchbase.client.core.msg.analytics.AnalyticsChunkHeader;
-import com.couchbase.client.core.msg.analytics.AnalyticsChunkTrailer;
 
 import java.util.List;
 
-import static com.couchbase.client.core.util.CbCollections.listCopyOf;
+import static com.couchbase.analytics.client.java.internal.utils.lang.CbCollections.listCopyOf;
+import static java.util.Objects.requireNonNull;
 
 @ThreadSafe(caveat = "Unless you modify the byte array returned by Row.bytes()")
 public final class QueryResult {
@@ -30,12 +29,11 @@ public final class QueryResult {
   private final QueryMetadata metadata;
 
   QueryResult(
-    AnalyticsChunkHeader header,
     List<Row> rows,
-    AnalyticsChunkTrailer trailer
+    QueryMetadata metadata
   ) {
     this.rows = listCopyOf(rows);
-    this.metadata = new QueryMetadata(header, trailer);
+    this.metadata = requireNonNull(metadata);
   }
 
   public List<Row> rows() {
@@ -46,4 +44,11 @@ public final class QueryResult {
     return metadata;
   }
 
+  @Override
+  public String toString() {
+    return "QueryResult{" +
+      "rowCount=" + rows.size() + // Just the count, otherwise the string could be HUGE!
+      ", metadata=" + metadata +
+      '}';
+  }
 }

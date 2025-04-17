@@ -17,12 +17,12 @@
 package com.couchbase.analytics.client.java;
 
 /**
- * The possible values for scan consistency in an columnar query.
+ * The possible values for scan consistency in an Analytics query.
  */
 public enum ScanConsistency {
 
   /**
-   * The index will return whatever state it has to the columnar query engine at the time of query.
+   * The index will return whatever state it has to the Analytics query engine at the time of query.
    * <p>
    * This is the default (for single-statement requests). No timestamp vector is used in the index scan. This is also
    * the fastest mode, because we avoid the cost of obtaining the vector, and we also avoid any wait for the index
@@ -37,7 +37,7 @@ public enum ScanConsistency {
 
   /**
    * The index will wait until all mutations have been processed at the time of request before being processed in the
-   * columnar query engine.
+   * Analytics query engine.
    * <p>
    * This implements strong consistency per request. Before processing the request, a current vector is obtained.
    * The vector is used as a lower bound for the statements in the request.

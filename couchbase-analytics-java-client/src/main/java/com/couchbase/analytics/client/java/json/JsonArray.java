@@ -16,9 +16,6 @@
 
 package com.couchbase.analytics.client.java.json;
 
-import com.couchbase.analytics.client.java.internal.JacksonTransformers;
-import com.couchbase.client.core.annotation.Stability;
-import com.couchbase.client.core.deps.com.fasterxml.jackson.core.JsonProcessingException;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
@@ -31,9 +28,6 @@ import java.util.Objects;
 
 /**
  * Represents a JSON array that can be stored and loaded from Couchbase Server.
- * <p>
- * If boxed return values are unboxed, the calling code needs to make sure to handle potential
- * {@link NullPointerException}s.
  * <p>
  * The {@link JsonArray} is backed by a {@link List} and is intended to work similar to it API wise, but to only
  * allow to store such objects which can be represented by JSON.
@@ -134,7 +128,6 @@ public final class JsonArray extends JsonValue implements Iterable<Object> {
    * @throws IllegalArgumentException if one or more elements is of unsupported type.
    * @throws NullPointerException if the given iterable is null.
    */
-  @Stability.Internal
   static JsonArray fromIterable(Iterable<?> items) {
     JsonArray array = new JsonArray();
     for (Object it : items) {
@@ -156,7 +149,7 @@ public final class JsonArray extends JsonValue implements Iterable<Object> {
    */
   public static JsonArray fromJson(String jsonArray) {
     try {
-      return JacksonTransformers.MAPPER.readValue(jsonArray, JsonArray.class);
+      return mapper.readValue(jsonArray, JsonArray.class);
     } catch (Exception e) {
       throw new IllegalArgumentException("Cannot convert string to JsonArray", e);
     }
@@ -164,7 +157,7 @@ public final class JsonArray extends JsonValue implements Iterable<Object> {
 
   public static JsonArray fromJson(byte[] jsonArray) {
     try {
-      return JacksonTransformers.MAPPER.readValue(jsonArray, JsonArray.class);
+      return mapper.readValue(jsonArray, JsonArray.class);
     } catch (Exception e) {
       throw new IllegalArgumentException("Cannot convert byte array to JsonArray", e);
     }
@@ -341,7 +334,7 @@ public final class JsonArray extends JsonValue implements Iterable<Object> {
    * @return the value at index.
    * @throws IndexOutOfBoundsException if the index is negative or too large.
    */
-  public boolean getBoolean(int index) {
+  public @Nullable Boolean getBoolean(int index) {
     return (Boolean) content.get(index);
   }
 
@@ -528,7 +521,7 @@ public final class JsonArray extends JsonValue implements Iterable<Object> {
   @Override
   public String toString() {
     try {
-      return JacksonTransformers.MAPPER.writeValueAsString(this);
+      return mapper.writeValueAsString(this);
     } catch (Exception e) {
       throw new RuntimeException("Cannot convert JsonArray to Json String", e);
     }
@@ -541,8 +534,8 @@ public final class JsonArray extends JsonValue implements Iterable<Object> {
    */
   public byte[] toBytes() {
     try {
-      return JacksonTransformers.MAPPER.writeValueAsBytes(this);
-    } catch (JsonProcessingException e) {
+      return mapper.writeValueAsBytes(this);
+    } catch (Exception e) {
       throw new RuntimeException("Cannot convert JsonArray to Json byte array", e);
     }
   }

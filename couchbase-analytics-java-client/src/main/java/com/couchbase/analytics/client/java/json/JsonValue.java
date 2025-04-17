@@ -15,6 +15,8 @@
  */
 package com.couchbase.analytics.client.java.json;
 
+import com.couchbase.analytics.client.java.internal.JsonValueModule;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
@@ -22,12 +24,16 @@ import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
 
-import static com.couchbase.client.core.util.CbCollections.listOf;
+import static com.couchbase.analytics.client.java.internal.utils.lang.CbCollections.listOf;
 
 /**
  * A JSON container, either a {@link JsonObject} or a {@link JsonArray}.
  */
 public abstract class JsonValue {
+  static final JsonMapper mapper = JsonMapper.builder()
+    .addModule(new JsonValueModule())
+    .build();
+
   JsonValue() {
   }
 

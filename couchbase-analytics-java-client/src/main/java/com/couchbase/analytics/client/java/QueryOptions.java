@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +18,13 @@ package com.couchbase.analytics.client.java;
 
 import com.couchbase.analytics.client.java.codec.Deserializer;
 import com.couchbase.analytics.client.java.internal.InternalJacksonSerDes;
-import com.couchbase.analytics.client.java.internal.JacksonTransformers;
 import com.couchbase.analytics.client.java.internal.JsonSerializer;
+import com.couchbase.analytics.client.java.internal.utils.json.Mapper;
+import com.couchbase.analytics.client.java.internal.utils.time.GolangDuration;
 import com.couchbase.analytics.client.java.json.JsonArray;
 import com.couchbase.analytics.client.java.json.JsonObject;
-import com.couchbase.client.core.deps.com.fasterxml.jackson.databind.JsonNode;
-import com.couchbase.client.core.deps.com.fasterxml.jackson.databind.node.ObjectNode;
-import com.couchbase.client.core.json.Mapper;
-import com.couchbase.client.core.util.Golang;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.jetbrains.annotations.ApiStatus.Experimental;
 import org.jspecify.annotations.Nullable;
 
@@ -169,13 +168,13 @@ public final class QueryOptions {
           && scanConsistency != null
           && scanConsistency != ScanConsistency.NOT_BOUNDED
       ) {
-        query.put("scan_wait", Golang.encodeDurationToMs(scanWait));
+        query.put("scan_wait", GolangDuration.encodeDurationToMs(scanWait));
       }
 
       boolean positionalPresent = positionalParameters != null && !positionalParameters.isEmpty();
       if (positionalPresent) {
         try {
-          JsonNode jsonArray = JacksonTransformers.MAPPER.convertValue(
+          JsonNode jsonArray = InternalJacksonSerDes.convertValue(
             JsonArray.from(positionalParameters), // ensures internal serializer can safely handle the values
             JsonNode.class
           );
@@ -247,7 +246,7 @@ public final class QueryOptions {
       Object value
     ) {
       byte[] jsonArrayBytes = serializer.serialize(value);
-      return Mapper.decodeIntoTree(jsonArrayBytes);
+      return Mapper.readTree(jsonArrayBytes);
     }
 
     public @Nullable QueryPriority priority() {

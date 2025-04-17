@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,12 @@
  * limitations under the License.
  */
 
-package com.couchbase.analytics.client.java;
-
 /**
- * Thrown when an interaction (or attempted interaction) with the Columnar cluster fails.
+ * Backports and utility functions for standard Java types.
  */
-public class ColumnarException extends RuntimeException {
-  public ColumnarException(String message) {
-    super(message);
-  }
+@NullMarked
+@ApiStatus.Internal
+package com.couchbase.analytics.client.java.internal.utils.lang;
 
-  public ColumnarException(String message, Throwable cause) {
-    super(message, cause);
-  }
-}
+import org.jetbrains.annotations.ApiStatus;
+import org.jspecify.annotations.NullMarked;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package com.couchbase.analytics.client.java;
 
 import com.couchbase.analytics.client.java.internal.Certificates;
 import com.couchbase.analytics.client.java.internal.TrustSource;
-import com.couchbase.client.core.annotation.Stability;
+import com.couchbase.analytics.client.java.internal.utils.security.CbCertificates;
 import org.jspecify.annotations.Nullable;
 
 import javax.net.ssl.TrustManagerFactory;
@@ -26,15 +26,21 @@ import java.nio.file.Path;
 import java.security.cert.X509Certificate;
 import java.util.List;
 
-import static com.couchbase.client.core.util.CbCollections.listCopyOf;
-import static java.util.Collections.emptyList;
+import static com.couchbase.analytics.client.java.internal.utils.lang.CbCollections.listCopyOf;
+import static com.couchbase.analytics.client.java.internal.utils.lang.CbCollections.listOf;
 import static java.util.Objects.requireNonNull;
 
 public final class SecurityOptions {
   SecurityOptions() {
   }
 
-  private List<String> cipherSuites = emptyList();
+  private static final List<String> defaultCipherSuites = listOf(
+    // TLS 1.3 cipher suites supported by Couchbase Server
+    "TLS_AES_128_GCM_SHA256",
+    "TLS_AES_256_GCM_SHA384"
+  );
+
+  private List<String> cipherSuites = defaultCipherSuites;
   @Nullable private TrustSource trustSource = null;
   private boolean disableServerCertificateVerification = false;
 
@@ -43,10 +49,13 @@ public final class SecurityOptions {
   }
 
   /**
-   * @param cipherSuites Names of the cipher suites to allow for TLS,
-   * or empty list to allow any suite supported by the runtime environment.
+   * @param cipherSuites Java names of the cipher suites to allow for TLS.
+   * The default value is unspecified and may change as the security landscape evolves.
    */
   public SecurityOptions cipherSuites(List<String> cipherSuites) {
+    if (cipherSuites.isEmpty()) {
+      throw new IllegalArgumentException("cipherSuites cannot be empty");
+    }
     this.cipherSuites = listCopyOf(cipherSuites);
     return this;
   }
@@ -54,8 +63,6 @@ public final class SecurityOptions {
   /**
    * Clears any existing trust settings, and tells the SDK to trust
    * only the Capella CA certificates bundled with this SDK.
-   * <p>
-   * This is the default trust setting.
    */
   public SecurityOptions trustOnlyCapella() {
     return trustOnlyCertificates(Certificates.getCapellaCertificates());
@@ -74,7 +81,7 @@ public final class SecurityOptions {
    * only the PEM-encoded certificates contained in the given string.
    */
   public SecurityOptions trustOnlyPemString(String pemEncodedCertificates) {
-    return trustSource(TrustSource.from(Certificates.parse(pemEncodedCertificates)));
+    return trustSource(TrustSource.from(CbCertificates.parse(pemEncodedCertificates)));
   }
 
   /**
@@ -91,6 +98,17 @@ public final class SecurityOptions {
    */
   public SecurityOptions trustOnlyJvm() {
     return trustSource(TrustSource.fromJvm());
+  }
+
+  /**
+   * Clears any existing trust settings, and tells the SDK to trust
+   * only the certificates trusted by the Java runtime environment
+   * plus the Capella CA certificates bundled with this SDK.
+   * <p>
+   * This is the default trust setting.
+   */
+  public SecurityOptions trustOnlyJvmAndCapella() {
+    return trustSource(TrustSource.fromJvmAndCapella());
   }
 
   /**
@@ -144,7 +162,7 @@ public final class SecurityOptions {
       this.cipherSuites = builder.cipherSuites;
       this.trustSource = builder.disableServerCertificateVerification
         ? TrustSource.insecure()
-        : (builder.trustSource != null ? builder.trustSource : TrustSource.from(Certificates.getCapellaCertificates()));
+        : (builder.trustSource != null ? builder.trustSource : TrustSource.fromJvmAndCapella());
     }
 
     public List<String> cipherSuites() {
@@ -153,7 +171,6 @@ public final class SecurityOptions {
 
     // todo for users who want to inspect this, should we make TrustSource public,
     // or expose separate fields for certificates and factory?
-    @Stability.Internal
     TrustSource trustSource() {
       return trustSource;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,7 @@
 
 package com.couchbase.analytics.client.java;
 
-
 import com.couchbase.analytics.client.java.internal.ThreadSafe;
-import com.couchbase.client.core.api.manager.CoreBucketAndScope;
 
 import java.util.function.Consumer;
 
@@ -28,6 +26,7 @@ import static java.util.Objects.requireNonNull;
 public final class Scope implements Queryable {
   private final Cluster cluster;
   private final Database database;
+  private final QueryContext queryContext;
 
   private final String name;
 
@@ -39,6 +38,7 @@ public final class Scope implements Queryable {
     this.cluster = requireNonNull(cluster);
     this.database = requireNonNull(database);
     this.name = requireNonNull(name);
+    this.queryContext = new QueryContext(database.name(), name);
   }
 
   /**
@@ -54,11 +54,7 @@ public final class Scope implements Queryable {
 
   @Override
   public QueryResult executeQuery(String statement, Consumer<QueryOptions> options) {
-    return cluster.queryExecutor.queryBuffered(
-      statement,
-      options,
-      new CoreBucketAndScope(database.name(), name)
-    );
+    return cluster.queryExecutor.executeQuery(queryContext, statement, options);
   }
 
   @Override
@@ -67,14 +63,8 @@ public final class Scope implements Queryable {
     Consumer<Row> rowAction,
     Consumer<QueryOptions> options
   ) {
-    return cluster.queryExecutor.queryStreaming(
-      statement,
-      options,
-      new CoreBucketAndScope(database.name(), name),
-      rowAction
-    );
+    return cluster.queryExecutor.executeStreamingQueryWithRetry(queryContext, statement, rowAction, options);
   }
-
 
   @Override
   public String toString() {

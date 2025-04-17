@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,21 +14,9 @@
  * limitations under the License.
  */
 
-package com.couchbase.analytics.client.java;
+@NullMarked
+@ApiStatus.Internal
+package com.couchbase.analytics.client.java.internal.utils.time;
 
-/**
- * Like {@link java.util.concurrent.TimeoutException}, but unchecked.
- * <p>
- * Thrown if an interaction with the Columnar cluster does not complete before its timeout expires.
- */
-public class TimeoutException extends ColumnarException {
-
-  public TimeoutException(String message) {
-    super(message);
-  }
-
-  public TimeoutException(String message, Throwable cause) {
-    super(message, cause);
-  }
-
-}
+import org.jetbrains.annotations.ApiStatus;
+import org.jspecify.annotations.NullMarked;

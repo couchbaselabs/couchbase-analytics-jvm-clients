@@ -17,7 +17,6 @@
 package com.couchbase.analytics.client.java;
 
 import com.couchbase.analytics.client.java.internal.ThreadSafe;
-import com.couchbase.client.core.error.ErrorCodeAndMessage;
 
 import static java.util.Objects.requireNonNull;
 

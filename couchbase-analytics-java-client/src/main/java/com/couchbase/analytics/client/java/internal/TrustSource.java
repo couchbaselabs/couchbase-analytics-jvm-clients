@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@
 package com.couchbase.analytics.client.java.internal;
 
 
-import com.couchbase.client.core.deps.io.netty.handler.ssl.util.InsecureTrustManagerFactory;
-import org.jetbrains.annotations.ApiStatus;
+import com.couchbase.analytics.client.java.internal.utils.security.CbCertificates;
 import org.jspecify.annotations.Nullable;
 
 import javax.net.ssl.TrustManagerFactory;
 import java.nio.file.Path;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -34,8 +34,9 @@ import static java.util.stream.Collectors.joining;
 /**
  * Either a {@link TrustManagerFactory} XOR a list of {@link X509Certificate}.
  */
-@ApiStatus.Internal
 public class TrustSource {
+  private static final TrustSource INSECURE = new TrustSource(null, new TrustManagerFactory(null, null, null) {});
+
   @Nullable private final List<X509Certificate> certificates;
   @Nullable private final TrustManagerFactory factory;
 
@@ -58,14 +59,24 @@ public class TrustSource {
    * Returns a new instance that trusts the certificate authorities trusted by this Java runtime environment.
    */
   public static TrustSource fromJvm() {
-    return from(Certificates.getJvmCertificates());
+    return from(CbCertificates.getJvmCertificates());
+  }
+
+  /**
+   * Returns a new instance that trusts the certificate authorities trusted by this Java runtime environment,
+   * plus the Capella production certificate.
+   */
+  public static TrustSource fromJvmAndCapella() {
+    List<X509Certificate> trustedCertificates = new ArrayList<>(CbCertificates.getJvmCertificates());
+    trustedCertificates.addAll(CbCertificates.getCapellaCaCertificates());
+    return from(trustedCertificates);
   }
 
   /**
    * Returns a new instance that trusts the certificates in the specified PEM file.
    */
   public static TrustSource from(Path pemFilePath) {
-    List<X509Certificate> certs = Certificates.read(pemFilePath);
+    List<X509Certificate> certs = CbCertificates.read(pemFilePath);
     if (certs.isEmpty()) {
       throw new IllegalArgumentException("PEM file contained no suitable certificates: " + pemFilePath);
     }
@@ -95,7 +106,7 @@ public class TrustSource {
    * Returns a new instance that does not verify server certificates.
    */
   public static TrustSource insecure() {
-    return from(InsecureTrustManagerFactory.INSTANCE);
+    return INSECURE;
   }
 
   public @Nullable List<X509Certificate> certificates() {
@@ -104,6 +115,10 @@ public class TrustSource {
 
   public @Nullable TrustManagerFactory trustManagerFactory() {
     return factory;
+  }
+
+  public boolean isInsecure() {
+    return this == INSECURE;
   }
 
   @Override

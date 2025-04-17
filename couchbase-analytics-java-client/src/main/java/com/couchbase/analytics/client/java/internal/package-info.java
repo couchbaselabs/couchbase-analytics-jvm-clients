@@ -15,11 +15,13 @@
  */
 
 /**
+ * Bits and bobs that are internal to the Analytics client.
+ * <p>
  * Classes in this package are not part of the SDK's public API,
  * and may change in any way at any time.
  */
-@ApiStatus.Internal
 @NullMarked
+@ApiStatus.Internal
 package com.couchbase.analytics.client.java.internal;
 
 import org.jetbrains.annotations.ApiStatus;

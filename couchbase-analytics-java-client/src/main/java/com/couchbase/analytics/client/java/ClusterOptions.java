@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -89,7 +89,7 @@ public final class ClusterOptions {
 
       this.deserializer = builder.deserializer != null
         ? builder.deserializer
-        : DefaultJacksonDeserializerHolder.DESERIALIZER; // triggers class loading, which fails if user excluded Jackson
+        : DefaultJacksonDeserializerHolder.DESERIALIZER;
     }
 
     public TimeoutOptions.Unmodifiable timeout() {

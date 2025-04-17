@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import org.jspecify.annotations.Nullable;
 import java.time.Duration;
 import java.util.function.Consumer;
 
-import static com.couchbase.client.core.util.CbObjects.defaultIfNull;
+import static com.couchbase.analytics.client.java.internal.utils.lang.CbObjects.defaultIfNull;
 
 /**
  * For specifying default timeouts in
@@ -50,7 +50,7 @@ public final class TimeoutOptions {
     return this;
   }
 
-  public TimeoutOptions connectTimeout(Duration connectTimeout) {
+  public TimeoutOptions connectTimeout(@Nullable Duration connectTimeout) {
     this.connectTimeout = requireNullOrNonNegative(connectTimeout, "connectTimeout");
     return this;
   }

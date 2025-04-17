@@ -16,18 +16,13 @@
 
 package com.couchbase.analytics.client.java;
 
-import com.couchbase.analytics.client.java.internal.JacksonTransformers;
 import com.couchbase.analytics.client.java.internal.ThreadSafe;
-import com.couchbase.client.core.deps.com.fasterxml.jackson.core.JsonProcessingException;
-import com.couchbase.client.core.deps.com.fasterxml.jackson.databind.JsonNode;
-import com.couchbase.client.core.json.Mapper;
-import com.couchbase.client.core.util.Golang;
+import com.couchbase.analytics.client.java.internal.utils.json.Mapper;
+import com.couchbase.analytics.client.java.internal.utils.time.GolangDuration;
+import com.fasterxml.jackson.databind.JsonNode;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Optional;
-
-import static com.couchbase.client.core.logging.RedactableArgument.redactUser;
 
 /**
  * Holds the metrics as returned from an analytics response.
@@ -47,28 +42,27 @@ public final class QueryMetrics {
    */
   QueryMetrics(final byte[] raw) {
     try {
-      this.rootNode = JacksonTransformers.MAPPER.readTree(raw);
-    } catch (IOException e) {
+      this.rootNode = Mapper.readTree(raw);
+    } catch (Exception e) {
       throw new DataConversionException("Could not parse analytics metrics!", e);
     }
   }
 
   /**
-   * @return The total time taken for the request, that is the time from when the
+   * @return The total time taken for the request that is the time from when the
    * request was received until the results were returned, in a human-readable
    * format (eg. 123.45ms for a little over 123 milliseconds).
    */
   public Duration elapsedTime() {
-    return decode(String.class, "elapsedTime").map(Golang::parseDuration).orElse(Duration.ZERO);
+    return decode(String.class, "elapsedTime").map(GolangDuration::parseDuration).orElse(Duration.ZERO);
   }
 
   /**
    * @return The time taken for the execution of the request, that is the time from
-   * when query execution started until the results were returned, in a human-readable
-   * format (eg. 123.45ms for a little over 123 milliseconds).
+   * when query execution started until the results were returned.
    */
   public Duration executionTime() {
-    return decode(String.class, "executionTime").map(Golang::parseDuration).orElse(Duration.ZERO);
+    return decode(String.class, "executionTime").map(GolangDuration::parseDuration).orElse(Duration.ZERO);
   }
 
   /**
@@ -106,8 +100,8 @@ public final class QueryMetrics {
       if (subNode == null || subNode.isNull() || subNode.isMissingNode()) {
         return Optional.empty();
       }
-      return Optional.ofNullable(JacksonTransformers.MAPPER.treeToValue(subNode, target));
-    } catch (JsonProcessingException e) {
+      return Optional.of(Mapper.convertValue(subNode, target));
+    } catch (Exception e) {
       throw new DataConversionException("Could not decode " + path + " in analytics metrics!", e);
     }
   }
@@ -115,7 +109,7 @@ public final class QueryMetrics {
   @Override
   public String toString() {
     return "QueryMetrics{" +
-      "raw=" + redactUser(Mapper.encodeAsString(rootNode)) +
+      "raw=" + rootNode +
       '}';
   }
 

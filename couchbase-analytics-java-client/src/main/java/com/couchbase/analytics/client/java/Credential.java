@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,13 @@
 
 package com.couchbase.analytics.client.java;
 
-import com.couchbase.analytics.client.java.internal.DynamicAuthenticator;
 import com.couchbase.analytics.client.java.internal.ThreadSafe;
-import com.couchbase.client.core.annotation.Stability;
-import com.couchbase.client.core.env.Authenticator;
-import com.couchbase.client.core.env.PasswordAuthenticator;
+import okhttp3.Credentials;
+import okhttp3.tls.HandshakeCertificates;
 
 import java.util.function.Supplier;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -42,43 +41,46 @@ public abstract class Credential {
    * Returns a new instance that holds the given username and password.
    */
   public static Credential of(String username, String password) {
-    Authenticator authenticator = PasswordAuthenticator.create(username, password);
+    String authHeaderValue = Credentials.basic(username, password, UTF_8);
+
     return new Credential() {
       @Override
-      Authenticator toInternalAuthenticator() {
-        return authenticator;
+      String httpAuthorizationHeaderValue() {
+        return authHeaderValue;
+      }
+
+      @Override
+      void addHeldCertificate(HandshakeCertificates.Builder builder) {
+        // noop
       }
     };
   }
 
   /**
    * Returns a new instance of a dynamic credential that invokes the given supplier
-   * the supplier every time a credential is required.
+   * every time a credential is required.
    * <p>
    * This enables updating a credential without having to restart your application.
-   * <p>
-   * <b>IMPORTANT:</b> The supplier's {@code get()} method must not do blocking IO
-   * or other expensive operations. It is called from async contexts, where blocking
-   * can starve important SDK resources like async event loops.
-   * <p>
-   * Instead of blocking inside the supplier, consider having the supplier return a value
-   * from a volatile field. Then keep the field up to date by scheduling a recurring task
-   * that reads new credentials from an external source and stores them
-   * in the volatile field.
    */
   public static Credential ofDynamic(Supplier<Credential> supplier) {
     requireNonNull(supplier);
-    Authenticator authenticator = new DynamicAuthenticator(() -> supplier.get().toInternalAuthenticator());
+
     return new Credential() {
       @Override
-      Authenticator toInternalAuthenticator() {
-        return authenticator;
+      String httpAuthorizationHeaderValue() {
+        return supplier.get().httpAuthorizationHeaderValue();
+      }
+
+      @Override
+      void addHeldCertificate(HandshakeCertificates.Builder builder) {
+        supplier.get().addHeldCertificate(builder);
       }
     };
   }
 
-  @Stability.Internal
-  abstract Authenticator toInternalAuthenticator();
+  abstract String httpAuthorizationHeaderValue();
+
+  abstract void addHeldCertificate(HandshakeCertificates.Builder builder);
 
   /**
    * @see #of

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ import static java.util.Objects.requireNonNull;
  * row.as(new TypeRef&lt;Map&lt;String, MyCustomClass>>() {});
  * </pre>
  * <p>
- * If you prefer to use the Couchbase Columnar SDK's simple {@link JsonValue}
+ * If you prefer to use the Couchbase Analytics SDK's simple {@link JsonValue}
  * tree model, convert the row to {@link JsonObject} or {@link JsonArray}.
  * These classes are not as full-featured as Jackson's tree model, but they
  * are always supported regardless of which deserializer you use.

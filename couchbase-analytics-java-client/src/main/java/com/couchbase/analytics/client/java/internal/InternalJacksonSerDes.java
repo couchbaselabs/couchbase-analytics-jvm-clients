@@ -20,10 +20,8 @@ import com.couchbase.analytics.client.java.DataConversionException;
 import com.couchbase.analytics.client.java.codec.Deserializer;
 import com.couchbase.analytics.client.java.codec.JacksonDeserializer;
 import com.couchbase.analytics.client.java.codec.TypeRef;
-import com.couchbase.client.core.deps.com.fasterxml.jackson.databind.JavaType;
-import com.couchbase.client.core.deps.com.fasterxml.jackson.databind.ObjectMapper;
-import com.couchbase.client.core.json.Mapper;
-import org.jetbrains.annotations.ApiStatus;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 
@@ -36,15 +34,19 @@ import java.io.IOException;
  * Be aware that this serializer does not recognize standard Jackson annotations.
  * @see JacksonDeserializer
  */
-@ApiStatus.Internal
 public class InternalJacksonSerDes implements JsonSerializer, Deserializer {
 
   public static final InternalJacksonSerDes INSTANCE = new InternalJacksonSerDes();
 
-  private final ObjectMapper mapper = Mapper.newObjectMapper();
+  private static final JsonMapper mapper = JsonMapper.builder()
+    .addModule(new JsonValueModule())
+    .build();
 
   private InternalJacksonSerDes() {
-    mapper.registerModule(new RepackagedJsonValueModule());
+  }
+
+  public static <T> T convertValue(Object fromValue, Class<T> toType) {
+    return mapper.convertValue(fromValue, toType);
   }
 
   @Override

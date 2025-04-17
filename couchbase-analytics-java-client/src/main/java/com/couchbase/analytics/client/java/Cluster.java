@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,199 +17,100 @@
 package com.couchbase.analytics.client.java;
 
 import com.couchbase.analytics.client.java.internal.Certificates;
-import com.couchbase.analytics.client.java.internal.ThreadSafe;
-import com.couchbase.client.core.Core;
-import com.couchbase.client.core.api.CoreCouchbaseOps;
-import com.couchbase.client.core.env.Authenticator;
-import com.couchbase.client.core.env.BuilderPropertySetter;
-import com.couchbase.client.core.env.CoreEnvironment;
-import com.couchbase.client.core.env.InvalidPropertyException;
-import com.couchbase.client.core.transaction.atr.ActiveTransactionRecordIds;
-import com.couchbase.client.core.transaction.config.CoreTransactionsCleanupConfig;
-import com.couchbase.client.core.transaction.config.CoreTransactionsConfig;
-import com.couchbase.client.core.transaction.forwards.CoreTransactionsSupportedExtensions;
-import com.couchbase.client.core.util.ConnectionString;
-import reactor.core.publisher.Mono;
+import com.couchbase.analytics.client.java.internal.utils.BuilderPropertySetter;
+import okhttp3.HttpUrl;
 
-import javax.net.ssl.TrustManagerFactory;
 import java.io.Closeable;
-import java.time.Duration;
-import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.List;
 import java.util.function.Consumer;
 
-import static com.couchbase.client.core.logging.RedactableArgument.redactUser;
-import static com.couchbase.client.core.transaction.config.CoreTransactionsCleanupConfig.DEFAULT_TRANSACTION_CLEANUP_WINDOW;
-import static com.couchbase.client.core.transaction.config.CoreTransactionsConfig.DEFAULT_TRANSACTION_DURABILITY_LEVEL;
-import static com.couchbase.client.core.transaction.config.CoreTransactionsConfig.DEFAULT_TRANSACTION_TIMEOUT;
-import static java.util.Collections.emptySet;
-import static java.util.Objects.requireNonNull;
+import static com.couchbase.analytics.client.java.internal.utils.lang.CbCollections.listOf;
+import static com.couchbase.analytics.client.java.internal.utils.lang.CbCollections.setOf;
 
-/**
- * Create a new instance by calling {@link #newInstance}.
- * <p>
- * To create an instance with default options:
- * <pre>
- * Cluster cluster = Cluster.newInstance(
- *     connectionString,
- *     Credential.of(username, password)
- * );
- * </pre>
- * To create an instance with custom options:
- * <pre>
- * Cluster cluster = Cluster.newInstance(
- *     connectionString,
- *     Credential.of(username, password),
- *     options -> options
- *         .timeout(it -> it.queryTimeout(Duration.ofMinutes(5)))
- *         .deserializer(new JacksonDeserializer(new ObjectMapper()))
- * );
- * </pre>
- * For best efficiency, create a single `Cluster` instance
- * per Columnar cluster and share it throughout your application.
- * <p>
- * When you're done interacting with the cluster, it's important to call
- * {@link Cluster#close()} to release resources used by the cluster.
- */
-@ThreadSafe
-public final class Cluster implements Closeable, Queryable {
-  private final Environment environment;
-  private final CoreCouchbaseOps couchbaseOps;
+public class Cluster implements Queryable, Closeable {
+
+  private static final BuilderPropertySetter propertySetter = BuilderPropertySetter.builder()
+    .registerCommonTypes()
+    .pathComponentTransformer(Cluster::lowerSnakeCaseToLowerCamelCase)
+    .build();
 
   final QueryExecutor queryExecutor;
 
-  /**
-   * Remembers whether {@link #disconnectInternal} was called.
-   */
-  private final AtomicBoolean disconnected = new AtomicBoolean();
 
-  /**
-   * Returns a new instance, with default options.
-   * <p>
-   * Example usage:
-   * <pre>
-   * Cluster cluster = Cluster.newInstance(
-   *     "couchbases://example.com",
-   *     Credentials.of(username, password)
-   * );
-   * </pre>
-   *
-   * @see #newInstance(String, Credential, Consumer)
-   * @see Credential#of(String, String)
-   */
-  public static Cluster newInstance(
-    String connectionString,
-    Credential credential
-  ) {
-    return newInstance(
-      connectionString,
-      credential,
-      options -> {
-      }
-    );
-  }
+  private static HttpUrl parseAnalyticsUrl(String s) {
+    HttpUrl url = HttpUrl.get(s);
+    HttpUrl.Builder builder = url.newBuilder();
 
-  /**
-   * Returns a new instance, with options customized by the {@code optionsCustomizer} callback.
-   * <p>
-   * Example usage:
-   * <pre>
-   * Cluster cluster = Cluster.newInstance(
-   *     connectionString,
-   *     Credential.of(username, password),
-   *     options -> options
-   *         .timeout(it -> it.queryTimeout(Duration.ofMinutes(5)))
-   *         .deserializer(new JacksonDeserializer(new ObjectMapper()))
-   * );
-   * </pre>
-   *
-   * @see Credential#of(String, String)
-   * @see #newInstance(String, Credential)
-   * @see ClusterOptions
-   */
-  public static Cluster newInstance(
-    String connectionString,
-    Credential credential,
-    Consumer<ClusterOptions> optionsCustomizer
-  ) {
-    ConnectionString cs = ConnectionString.create(connectionString);
-
-    if (cs.scheme() != ConnectionString.Scheme.COUCHBASES) {
-      throw new IllegalArgumentException("Invalid connection string; must start with secure scheme \"couchbases://\" (note the final 's') but got: " + redactUser(cs.original()));
+    if (!url.username().isEmpty() || !url.password().isEmpty()) {
+      throw new IllegalArgumentException("Connection string must not have username or password");
     }
 
-    checkParameterNamesAreLowercase(cs);
+    if (url.pathSegments().equals(listOf(""))) {
+      builder
+        .addPathSegment("analytics")
+        .addPathSegment("service");
+//        .addPathSegment("api")
+//        .addPathSegment("v1")
+//        .addPathSegment("request");
 
-    ClusterOptions builder = new ClusterOptions();
-    optionsCustomizer.accept(builder);
+    } else {
+      throw new IllegalArgumentException("Connection string must not have path components.");
+    }
 
-    applyConnectionStringParameters(builder, cs);
+//    if (URI.create(s).getPort() == -1) {
+//      builder.port(url.isHttps() ? 18095 : 8095);
+//    }
 
-    ClusterOptions.Unmodifiable opts = builder.build();
-
-    Environment.Builder envBuilder = new Environment.Builder()
-      .transactionsConfig(disableTransactionsCleanup())
-      .deserializer(opts.deserializer())
-      .ioConfig(it -> it
-        .enableDnsSrv(opts.srv())
-        .maxHttpConnections(Integer.MAX_VALUE)
-      )
-      .securityConfig(it -> {
-          SecurityOptions.Unmodifiable security = opts.security();
-
-          it.enableTls(true);
-
-          if (!security.cipherSuites().isEmpty()) {
-            it.ciphers(security.cipherSuites());
-          }
-
-          TrustManagerFactory factory = security.trustSource().trustManagerFactory();
-          if (factory != null) {
-            it.trustManagerFactory(factory);
-          } else {
-            it.trustCertificates(security.trustSource().certificates());
-          }
-        }
-      );
-
-    TimeoutOptions.Unmodifiable timeouts = opts.timeout();
-    envBuilder.timeoutConfig(it -> it
-      .connectTimeout(timeouts.connectTimeout())
-      .analyticsTimeout(timeouts.queryTimeout())
-    );
-
-    // Not exposing config options for native I/O, since it's
-    // unclear whether future SDK versions will retain this feature.
-    // Disable it to avoid exploding on Alpine Linux where there's no glibc.
-    envBuilder
-      .ioEnvironment(it -> it.enableNativeIo(false))
-      .securityConfig(it -> it.enableNativeTls(false));
-
-    Environment env = envBuilder.build();
-
-    return new Cluster(cs, credential.toInternalAuthenticator(), env);
+    return builder.build();
   }
 
-  private static void applyConnectionStringParameters(ClusterOptions builder, ConnectionString cs) {
+  private Cluster(String connectionString, Credential credential, ClusterOptions.Unmodifiable options) {
+    HttpUrl url = parseAnalyticsUrl(connectionString);
+    this.queryExecutor = new QueryExecutor(
+      new AnalyticsOkHttpClient(options, url, credential),
+      url,
+      credential,
+      options
+    );
+  }
+
+  public static Cluster newInstance(String connectionString, Credential credential) {
+    return newInstance(connectionString, credential, options -> {
+    });
+  }
+
+  private static String withoutQueryParameters(String url) {
+    int index = url.indexOf('?');
+    return index == -1 ? url : url.substring(0, index);
+  }
+
+  public static Cluster newInstance(String connectionString, Credential credential, Consumer<ClusterOptions> options) {
+    ClusterOptions opts = new ClusterOptions();
+    options.accept(opts);
+    applyConnectionStringParameters(opts, HttpUrl.get(connectionString));
+    return new Cluster(withoutQueryParameters(connectionString), credential, opts.build());
+  }
+
+  private static LinkedHashMap<String, String> queryParameters(HttpUrl url) {
+    LinkedHashMap<String, String> params = new LinkedHashMap<>();
+    for (String name : url.queryParameterNames()) {
+      List<String> values = url.queryParameterValues(name);
+      params.put(name, values.get(values.size() - 1));
+    }
+    return params;
+  }
+
+  private static void applyConnectionStringParameters(ClusterOptions builder, HttpUrl url) {
     // Make a mutable copy so we can remove entries that require special handling.
-    LinkedHashMap<String, String> params = new LinkedHashMap<>(cs.params());
+    LinkedHashMap<String, String> params = queryParameters(url);
 
     // "security.trust_only_non_prod" is special; it doesn't have a corresponding programmatic
     // config option. It's not a secret, but we don't want to confuse external users with a
     // security config option they never need to set.
     boolean trustOnlyNonProdCertificates = lastTrustParamIsNonProd(params);
 
-    try {
-      BuilderPropertySetter propertySetter = new BuilderPropertySetter("", Collections.emptyMap(), Cluster::lowerSnakeCaseToLowerCamelCase);
-      propertySetter.set(builder, params);
-
-    } catch (InvalidPropertyException e) {
-      // Translate core-io exception (internal API) to platform exception!
-      throw new IllegalArgumentException(e.getMessage(), e.getCause());
-    }
+    propertySetter.set(builder, params);
 
     // Do this last, after any other "trust_only_*" params are validated and applied.
     // Otherwise, the earlier params would clobber the config set by this param.
@@ -220,14 +121,6 @@ public final class Cluster implements Closeable, Queryable {
     }
   }
 
-  /**
-   * Returns true if the "security.trust_only_non_prod" connection string param is
-   * present, and no other trust params appear after it (since last one wins).
-   * <p>
-   * Side effect: Removes that param from the map.
-   *
-   * @throws IllegalArgumentException if the param has an invalid value
-   */
   private static boolean lastTrustParamIsNonProd(LinkedHashMap<String, String> params) {
     final String TRUST_ONLY_NON_PROD_PARAM = "security.trust_only_non_prod";
 
@@ -242,24 +135,11 @@ public final class Cluster implements Closeable, Queryable {
     String trustOnlyNonProdValue = params.remove(TRUST_ONLY_NON_PROD_PARAM);
 
     // Always validate if present, regardless of whether it was last.
-    if (trustOnlyNonProdValue != null && !Set.of("", "true", "1").contains(trustOnlyNonProdValue)) {
+    if (trustOnlyNonProdValue != null && !setOf("", "true", "1").contains(trustOnlyNonProdValue)) {
       throw new IllegalArgumentException("Invalid value for connection string property '" + TRUST_ONLY_NON_PROD_PARAM + "'; expected 'true', '1', or empty string, but got: '" + trustOnlyNonProdValue + "'");
     }
 
     return trustOnlyNonProdWasLast;
-  }
-
-  private static void checkParameterNamesAreLowercase(ConnectionString cs) {
-    cs.params().keySet().stream()
-      .filter(Cluster::hasUppercase)
-      .findFirst()
-      .ifPresent(badName -> {
-        throw new IllegalArgumentException("Invalid connection string parameter '" + badName + "'. Please use lower_snake_case in connection string parameter names.");
-      });
-  }
-
-  private static boolean hasUppercase(String s) {
-    return s.codePoints().anyMatch(Character::isUpperCase);
   }
 
   private static String lowerSnakeCaseToLowerCamelCase(String s) {
@@ -283,56 +163,6 @@ public final class Cluster implements Closeable, Queryable {
     return sb.toString();
   }
 
-  private static CoreTransactionsConfig disableTransactionsCleanup() {
-    return new CoreTransactionsConfig(
-      DEFAULT_TRANSACTION_DURABILITY_LEVEL,
-      DEFAULT_TRANSACTION_TIMEOUT,
-      new CoreTransactionsCleanupConfig(false, false, DEFAULT_TRANSACTION_CLEANUP_WINDOW, emptySet()),
-      null,
-      null,
-      null,
-      ActiveTransactionRecordIds.NUM_ATRS_DEFAULT,
-      Optional.empty(),
-      Optional.empty(),
-      CoreTransactionsSupportedExtensions.NONE
-    );
-  }
-
-  /**
-   * @see #newInstance
-   */
-  private Cluster(
-    ConnectionString connectionString,
-    Authenticator authenticator,
-    Environment environment
-  ) {
-    this.environment = requireNonNull(environment);
-    this.couchbaseOps = CoreCouchbaseOps.create(environment, authenticator, connectionString);
-
-    Core core = couchbaseOps.asCore();
-    core.initGlobalConfig();
-
-    this.queryExecutor = new QueryExecutor(core, environment, connectionString);
-  }
-
-  /**
-   * Releases resources and prevents further use of this object.
-   */
-  public void close() {
-    Duration timeout = environment.timeoutConfig().disconnectTimeout();
-    disconnectInternal(disconnected, timeout, couchbaseOps, environment).block();
-  }
-
-  static Mono<Void> disconnectInternal(
-    final AtomicBoolean disconnected,
-    final Duration timeout,
-    final CoreCouchbaseOps couchbaseOps,
-    final CoreEnvironment environment
-  ) {
-    return couchbaseOps.shutdown(timeout)
-      .then(environment.shutdownReactive(timeout))
-      .then(Mono.fromRunnable(() -> disconnected.set(true)));
-  }
 
   /**
    * Returns the database in this cluster with the given name.
@@ -348,19 +178,31 @@ public final class Cluster implements Closeable, Queryable {
   }
 
   @Override
-  public QueryResult executeQuery(
-    String statement,
-    Consumer<QueryOptions> optionsCustomizer
-  ) {
-    return queryExecutor.queryBuffered(statement, optionsCustomizer, null);
+  public QueryResult executeQuery(String statement, Consumer<QueryOptions> options) {
+    try {
+      return queryExecutor.executeQuery(null, statement, options);
+
+    } catch (QueryException e) {
+      // Expected, so omit uninteresting noise from the JSON stream parser.
+      e.fillInStackTrace();
+      throw e;
+    }
   }
 
   @Override
-  public QueryMetadata executeStreamingQuery(
-    String statement,
-    Consumer<Row> rowAction,
-    Consumer<QueryOptions> optionsCustomizer
-  ) {
-    return queryExecutor.queryStreaming(statement, optionsCustomizer, null, rowAction);
+  public QueryMetadata executeStreamingQuery(String statement, Consumer<Row> rowAction, Consumer<QueryOptions> options) {
+    try {
+      return queryExecutor.executeStreamingQueryWithRetry(null, statement, rowAction, options);
+
+    } catch (QueryException e) {
+      // Expected, so omit uninteresting noise from the JSON stream parser.
+      e.fillInStackTrace();
+      throw e;
+    }
+  }
+
+  @Override
+  public void close() {
+    queryExecutor.close();
   }
 }

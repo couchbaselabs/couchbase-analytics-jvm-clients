@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,17 @@
 
 package com.couchbase.analytics.client.java.internal;
 
-// CHECKSTYLE:OFF IllegalImport - Allow unbundled Jackson
-
 import com.couchbase.analytics.client.java.codec.JacksonDeserializer;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import org.jetbrains.annotations.ApiStatus;
 
 /**
- * Separate class so the SDK doesn't explode if the user
- * excludes Jackson from the class path.
+ * Initialization-on-demand holder for the default deserializer.
  */
-@ApiStatus.Internal
-public class DefaultJacksonDeserializerHolder {
+public final class DefaultJacksonDeserializerHolder {
   public static final JacksonDeserializer DESERIALIZER = new JacksonDeserializer(
     JsonMapper.builder().build()
   );
+
+  private DefaultJacksonDeserializerHolder() {
+  }
 }

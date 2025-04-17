@@ -16,9 +16,6 @@
 
 package com.couchbase.analytics.client.java.internal;
 
-import org.jetbrains.annotations.ApiStatus;
-
-@ApiStatus.Internal
 public interface JsonSerializer {
   byte[] serialize(Object input);
 }

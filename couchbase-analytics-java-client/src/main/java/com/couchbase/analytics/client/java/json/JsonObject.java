@@ -16,8 +16,6 @@
 
 package com.couchbase.analytics.client.java.json;
 
-import com.couchbase.analytics.client.java.internal.JacksonTransformers;
-import com.couchbase.client.core.deps.com.fasterxml.jackson.core.JsonProcessingException;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
@@ -32,9 +30,6 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * Represents a JSON object that can be stored and loaded from Couchbase Server.
- * <p>
- * If boxed return values are unboxed, the calling code needs to make sure to handle potential
- * {@link NullPointerException}s.
  * <p>
  * The {@link JsonObject} is backed by a {@link Map} and is intended to work similar to it API wise, but to only
  * allow to store such objects which can be represented by JSON.
@@ -131,7 +126,7 @@ public final class JsonObject extends JsonValue {
    */
   public static JsonObject fromJson(final String jsonObject) {
     try {
-      return JacksonTransformers.MAPPER.readValue(jsonObject, JsonObject.class);
+      return mapper.readValue(jsonObject, JsonObject.class);
     } catch (Exception e) {
       throw new IllegalArgumentException("Cannot convert string to JsonObject", e);
     }
@@ -139,7 +134,7 @@ public final class JsonObject extends JsonValue {
 
   public static JsonObject fromJson(final byte[] jsonObject) {
     try {
-      return JacksonTransformers.MAPPER.readValue(jsonObject, JsonObject.class);
+      return mapper.readValue(jsonObject, JsonObject.class);
     } catch (Exception e) {
       throw new IllegalArgumentException("Cannot convert byte array to JsonObject", e);
     }
@@ -532,8 +527,8 @@ public final class JsonObject extends JsonValue {
   @Override
   public String toString() {
     try {
-      return JacksonTransformers.MAPPER.writeValueAsString(this);
-    } catch (JsonProcessingException e) {
+      return mapper.writeValueAsString(this);
+    } catch (Exception e) {
       throw new RuntimeException("Cannot convert JsonObject to Json String", e);
     }
   }
@@ -545,8 +540,8 @@ public final class JsonObject extends JsonValue {
    */
   public byte[] toBytes() {
     try {
-      return JacksonTransformers.MAPPER.writeValueAsBytes(this);
-    } catch (JsonProcessingException e) {
+      return mapper.writeValueAsBytes(this);
+    } catch (Exception e) {
       throw new RuntimeException("Cannot convert JsonObject to Json byte array", e);
     }
   }

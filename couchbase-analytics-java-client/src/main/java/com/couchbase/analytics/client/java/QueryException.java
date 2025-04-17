@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,28 +16,31 @@
 
 package com.couchbase.analytics.client.java;
 
-import com.couchbase.client.core.cnc.Context;
-import com.couchbase.client.core.error.ErrorCodeAndMessage;
-import com.couchbase.client.core.error.context.ErrorContext;
+import org.jspecify.annotations.Nullable;
 
+import static com.couchbase.analytics.client.java.internal.utils.lang.CbStrings.isNullOrEmpty;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Thrown when the Columnar cluster returns an error message in response to a query request.
+ * Thrown when the Analytics cluster returns an error message in response to a query request.
  */
-public class QueryException extends ColumnarException {
-  private final ErrorCodeAndMessage errorCodeAndMessage;
+public final class QueryException extends AnalyticsException {
+  final ErrorCodeAndMessage errorCodeAndMessage;
+
+  QueryException(ErrorCodeAndMessage errorCodeAndMessage) {
+    this(errorCodeAndMessage, null);
+  }
 
   QueryException(
     ErrorCodeAndMessage errorCodeAndMessage,
-    ErrorContext ctx
+    @Nullable String ctx
   ) {
-    super(errorCodeAndMessage + " ; " + ctx.exportAsString(Context.ExportFormat.JSON));
+    super(errorCodeAndMessage + (isNullOrEmpty(ctx) ? "" : (" ; " + ctx)));
     this.errorCodeAndMessage = requireNonNull(errorCodeAndMessage);
   }
 
   /**
-   * Returns the Columnar error code sent by the server.
+   * Returns the Analytics error code sent by the server.
    */
   // todo include a documentation reference link in the Javadoc
   public int code() {

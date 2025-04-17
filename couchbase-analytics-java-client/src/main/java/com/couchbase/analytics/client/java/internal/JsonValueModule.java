@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,24 +18,22 @@ package com.couchbase.analytics.client.java.internal;
 
 import com.couchbase.analytics.client.java.json.JsonArray;
 import com.couchbase.analytics.client.java.json.JsonObject;
-import com.couchbase.client.core.deps.com.fasterxml.jackson.core.JsonGenerator;
-import com.couchbase.client.core.deps.com.fasterxml.jackson.core.JsonParser;
-import com.couchbase.client.core.deps.com.fasterxml.jackson.core.JsonToken;
-import com.couchbase.client.core.deps.com.fasterxml.jackson.core.Version;
-import com.couchbase.client.core.deps.com.fasterxml.jackson.databind.DeserializationContext;
-import com.couchbase.client.core.deps.com.fasterxml.jackson.databind.JsonDeserializer;
-import com.couchbase.client.core.deps.com.fasterxml.jackson.databind.JsonSerializer;
-import com.couchbase.client.core.deps.com.fasterxml.jackson.databind.SerializerProvider;
-import com.couchbase.client.core.deps.com.fasterxml.jackson.databind.module.SimpleModule;
-import org.jetbrains.annotations.ApiStatus;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.Version;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 
-@ApiStatus.Internal
-public class RepackagedJsonValueModule extends SimpleModule {
+public class JsonValueModule extends SimpleModule {
 
-  public RepackagedJsonValueModule() {
+  public JsonValueModule() {
     super(new Version(1, 0, 0, null, "com.couchbase", "JsonValueModule"));
 
     addSerializer(JsonObject.class, new JsonObjectSerializer());

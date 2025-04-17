@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,13 +32,13 @@ public interface Queryable {
    * streaming version that takes a row action callback:
    * {@link #executeStreamingQuery(String, Consumer, Consumer)}.
    *
-   * @param statement The Columnar SQL++ statement to execute.
+   * @param statement The Analytics SQL++ statement to execute.
    * @param options A callback for specifying custom query options.
    * @return A query result consisting of metadata and a list of rows.
-   * @throws CancellationException if the calling thread is interrupted.
-   * @throws TimeoutException if the query does not complete before the timeout expires.
    * @throws QueryException if the server response indicates an error occurred.
    * @throws InvalidCredentialException if the server rejects the user credentials.
+   * @throws AnalyticsTimeoutException if the query does not complete before the timeout expires.
+   * @throws CancellationException if the calling thread is interrupted.
    */
   QueryResult executeQuery(
     String statement,
@@ -56,12 +56,12 @@ public interface Queryable {
    * streaming version that takes a row action callback:
    * {@link #executeStreamingQuery(String, Consumer)}.
    *
-   * @param statement The Columnar SQL++ statement to execute.
+   * @param statement The Analytics SQL++ statement to execute.
    * @return A query result consisting of metadata and a list of rows.
-   * @throws CancellationException if the calling thread is interrupted.
-   * @throws TimeoutException if the query does not complete before the timeout expires.
    * @throws QueryException if the server response indicates an error occurred.
    * @throws InvalidCredentialException if the server rejects the user credentials.
+   * @throws AnalyticsTimeoutException if the query does not complete before the timeout expires.
+   * @throws CancellationException if the calling thread is interrupted.
    */
   default QueryResult executeQuery(String statement) {
     return executeQuery(
@@ -81,14 +81,14 @@ public interface Queryable {
    * an exception, the query is cancelled and the exception is re-thrown
    * by this method.
    *
-   * @param statement The Columnar SQL++ statement to execute.
+   * @param statement The Analytics SQL++ statement to execute.
    * @param options A callback for specifying custom query options.
    * @return Query metadata.
-   * @throws CancellationException if the calling thread is interrupted.
-   * @throws TimeoutException if the query does not complete before the timeout expires.
    * @throws QueryException if the server response indicates an error occurred.
-   * @throws RuntimeException if the row action callback throws an exception.
    * @throws InvalidCredentialException if the server rejects the user credentials.
+   * @throws AnalyticsTimeoutException if the query does not complete before the timeout expires.
+   * @throws CancellationException if the calling thread is interrupted.
+   * @throws RuntimeException if the row action callback throws an exception.
    */
   QueryMetadata executeStreamingQuery(
     String statement,
@@ -108,12 +108,12 @@ public interface Queryable {
    * If the statement has parameters, use the overload that takes options:
    * {@link #executeStreamingQuery(String, Consumer, Consumer)}.
    *
-   * @param statement The Columnar SQL++ statement to execute.
+   * @param statement The Analytics SQL++ statement to execute.
    * @return Query metadata.
-   * @throws CancellationException if the calling thread is interrupted.
-   * @throws TimeoutException if the query does not complete before the timeout expires.
    * @throws QueryException if the server response indicates an error occurred.
    * @throws InvalidCredentialException if the server rejects the user credentials.
+   * @throws AnalyticsTimeoutException if the query does not complete before the timeout expires.
+   * @throws CancellationException if the calling thread is interrupted.
    * @throws RuntimeException if the row action callback throws an exception.
    */
   default QueryMetadata executeStreamingQuery(

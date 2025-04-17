@@ -17,13 +17,15 @@
 package com.couchbase.analytics.client.java;
 
 import com.couchbase.analytics.client.java.internal.ThreadSafe;
-import com.couchbase.client.core.error.ErrorCodeAndMessage;
-import com.couchbase.client.core.msg.analytics.AnalyticsChunkHeader;
-import com.couchbase.client.core.msg.analytics.AnalyticsChunkTrailer;
+import com.couchbase.analytics.client.java.internal.utils.json.Mapper;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
+
+import static com.couchbase.analytics.client.java.internal.utils.lang.CbCollections.transform;
+import static com.couchbase.analytics.client.java.internal.utils.lang.CbObjects.defaultIfNull;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * Holds associated metadata returned by the server.
@@ -31,12 +33,14 @@ import java.util.stream.Collectors;
 @ThreadSafe
 public final class QueryMetadata {
 
-  private final AnalyticsChunkHeader header;
-  private final AnalyticsChunkTrailer trailer;
+  private final String requestId;
+  private final byte @Nullable [] metrics;
+  private final byte @Nullable [] warnings;
 
-  QueryMetadata(final AnalyticsChunkHeader header, final AnalyticsChunkTrailer trailer) {
-    this.header = header;
-    this.trailer = trailer;
+  QueryMetadata(AnalyticsResponseParser response) {
+    this.requestId = defaultIfNull(response.requestId, "?");
+    this.metrics = response.metrics;
+    this.warnings = response.warnings;
   }
 
   /**
@@ -45,7 +49,7 @@ public final class QueryMetadata {
    * @return request identifier
    */
   public String requestId() {
-    return header.requestId();
+    return requestId;
   }
 
   /**
@@ -54,7 +58,9 @@ public final class QueryMetadata {
    * @return the metrics for the analytics response.
    */
   public QueryMetrics metrics() {
-    return new QueryMetrics(trailer.metrics());
+    return metrics == null
+      ? new QueryMetrics("{}".getBytes(UTF_8)) // unexpected, but let's not explode.
+      : new QueryMetrics(metrics);
   }
 
   /**
@@ -63,16 +69,17 @@ public final class QueryMetadata {
    * @return warnings, if present.
    */
   public List<QueryWarning> warnings() {
-    return this.trailer.warnings().map(warnings ->
-      ErrorCodeAndMessage.fromJsonArray(warnings).stream().map(QueryWarning::new).collect(Collectors.toList())
-    ).orElse(Collections.emptyList());
+    return warnings == null
+      ? Collections.emptyList()
+      : transform(ErrorCodeAndMessage.fromJsonArray(warnings), QueryWarning::new);
   }
 
   @Override
   public String toString() {
     return "QueryMetadata{" +
-      "header=" + header +
-      ", trailer=" + trailer +
+      "requestId='" + requestId + '\'' +
+      ", metrics=" + (metrics == null ? "{}" : Mapper.readTree(metrics)) +
+      ", warnings=" + (warnings == null ? "[]" : Mapper.readTree(warnings)) +
       '}';
   }
 }

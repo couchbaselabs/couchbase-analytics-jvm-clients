@@ -16,8 +16,6 @@
 
 package com.couchbase.analytics.client.java.codec;
 
-// CHECKSTYLE:OFF IllegalImport - Allow unbundled Jackson
-
 import com.couchbase.analytics.client.java.ClusterOptions;
 import com.couchbase.analytics.client.java.QueryOptions;
 import com.couchbase.analytics.client.java.internal.ThreadSafe;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,8 @@
 
 package com.couchbase.analytics.client.java;
 
-import com.couchbase.client.core.cnc.Context;
-import com.couchbase.client.core.error.context.ErrorContext;
-
-public class InvalidCredentialException extends ColumnarException {
-  InvalidCredentialException(ErrorContext ctx) {
-    super("User authentication failed. " + ctx.exportAsString(Context.ExportFormat.JSON));
+public class InvalidCredentialException extends AnalyticsException {
+  InvalidCredentialException(String context) {
+    super("User authentication failed. " + context);
   }
 }

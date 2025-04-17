@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Couchbase, Inc.
+ * Copyright 2025 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
  */
 
 package com.couchbase.analytics.client.java.internal;
-
-import org.jetbrains.annotations.ApiStatus;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -34,7 +32,6 @@ import java.lang.annotation.Target;
  * when it is present. The implementor of the annotated class/interface
  * is responsible for ensuring it is actually thread-safe.
  */
-@ApiStatus.Internal
 @Retention(RetentionPolicy.SOURCE)
 @Documented
 @Target(ElementType.TYPE)
