@@ -31,6 +31,7 @@
 
     <modules>
         <module>couchbase-analytics-java-client</module>
+<!--        <module>couchbase-analytics-java-client/fit</module>-->
     </modules>
 
     <distributionManagement>
