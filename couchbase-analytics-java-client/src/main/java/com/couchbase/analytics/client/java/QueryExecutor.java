@@ -202,12 +202,16 @@ class QueryExecutor {
 
     opts.injectParams(query);
 
-    Request request = new Request.Builder()
+    Request.Builder requestBuilder = new Request.Builder()
       .url(url)
       .header("User-Agent", userAgent)
       .header("Authorization", credential.httpAuthorizationHeaderValue())
-      .post(requestBody(query))
-      .build();
+      .post(requestBody(query));
+    if (opts.priority() == QueryPriority.HIGH) {
+      //noinspection UastIncorrectHttpHeaderInspection
+      requestBuilder.header("Analytics-Priority", "-1");
+    }
+    Request request = requestBuilder.build();
 
     OkHttpClient client = httpClient.clientWithTimeout(timeout);
     Call call = client.newCall(request);
