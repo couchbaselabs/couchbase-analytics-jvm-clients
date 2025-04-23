@@ -48,11 +48,11 @@ public class Cluster implements Queryable, Closeable {
 
     if (url.pathSegments().equals(listOf(""))) {
       builder
-        .addPathSegment("analytics")
-        .addPathSegment("service");
-//        .addPathSegment("api")
-//        .addPathSegment("v1")
-//        .addPathSegment("request");
+//        .addPathSegment("analytics")
+//        .addPathSegment("service");
+        .addPathSegment("api")
+        .addPathSegment("v1")
+        .addPathSegment("request");
 
     } else {
       throw new IllegalArgumentException("Connection string must not have path components.");
