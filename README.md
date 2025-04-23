@@ -11,3 +11,16 @@ JVM clients for Couchbase Enterprise Analytics
     <version>1.0.0-SNAPSHOT</version>
 </dependency>
 ```
+
+## Snapshot repository
+
+```xml
+<repositories>
+  <repository>
+    <id>sonatype-snapshots</id>
+    <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+    <releases><enabled>false</enabled></releases>
+    <snapshots><enabled>true</enabled></snapshots>
+  </repository>
+</repositories>
+```
