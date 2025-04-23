@@ -29,7 +29,7 @@ public class ErrorUtil {
   private static boolean isColumnarError(Throwable exception) {
     String simpleName = exception.getClass().getSimpleName();
     return switch (simpleName) {
-      case "QueryException", "InvalidCredentialException", "TimeoutException", "ColumnarException" -> true;
+      case "QueryException", "InvalidCredentialException", "TimeoutException", "AnalyticsException" -> true;
       default -> false;
     };
   }

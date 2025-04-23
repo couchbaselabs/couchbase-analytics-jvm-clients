@@ -76,7 +76,7 @@ public class JavaAnalyticsService extends ColumnarServiceGrpc.ColumnarServiceImp
       for (Mode mode : new Mode[]{Mode.PUSH_BASED_STREAMING, Mode.BUFFERED}) {
         builder.putSdkConnectionError(mode.ordinal(), SdkConnectionError.newBuilder()
           .setInvalidCredErrorType(SdkConnectionError.InvalidCredentialErrorType.AS_INVALID_CREDENTIAL_EXCEPTION)
-          .setBootstrapErrorType(SdkConnectionError.BootstrapErrorType.ERROR_AS_TIMEOUT_EXCEPTION)
+          .setBootstrapErrorType(SdkConnectionError.BootstrapErrorType.AS_COLUMNAR_ERROR)
           .build()
         );
       }
