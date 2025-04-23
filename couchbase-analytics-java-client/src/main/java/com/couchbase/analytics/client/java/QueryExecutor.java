@@ -151,7 +151,6 @@ class QueryExecutor {
             AnalyticsTimeoutException timeoutException = new AnalyticsTimeoutException(
               "Declaring timeout early because sleeping for backoff delay would exceed timeout deadline."
             );
-            timeoutException.addSuppressed(prevException);
             throw timeoutException;
           }
 
