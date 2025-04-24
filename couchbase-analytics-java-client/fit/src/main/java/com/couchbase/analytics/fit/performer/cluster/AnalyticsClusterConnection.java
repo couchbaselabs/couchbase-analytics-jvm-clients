@@ -21,6 +21,7 @@ import com.couchbase.analytics.client.java.Cluster;
 import com.couchbase.analytics.client.java.Credential;
 import com.couchbase.analytics.client.java.internal.utils.lang.CbStrings;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,17 +34,23 @@ public class AnalyticsClusterConnection {
   // the same lifetime.
   private final List<Runnable> onClusterConnectionClose;
 
+  private static boolean hasPort(String connectionString) {
+    return URI.create(connectionString).getPort() != -1;
+  }
+
   private static String adjustConnectionString(String connectionString) {
     if (connectionString.startsWith("http")) {
       return connectionString;
     }
 
     if (connectionString.startsWith("couchbases")) {
-      return "https" + CbStrings.removeStart(connectionString, "couchbases") + ":18095";
+      String s = "https" + CbStrings.removeStart(connectionString, "couchbases");
+      return hasPort(connectionString) ? s : s + ":18095";
     }
 
     if (connectionString.startsWith("couchbase")) {
-      return "http" + CbStrings.removeStart(connectionString, "couchbase") + ":8095";
+      String s = "http" + CbStrings.removeStart(connectionString, "couchbase");
+      return hasPort(connectionString) ? s : s + ":8095";
     }
 
     throw new IllegalArgumentException(

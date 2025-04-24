@@ -15,23 +15,17 @@
  */
 package com.couchbase.analytics.fit.performer.util;
 
+import com.couchbase.analytics.client.java.AnalyticsException;
 import com.couchbase.analytics.client.java.AnalyticsTimeoutException;
 import com.couchbase.analytics.client.java.InvalidCredentialException;
 import com.couchbase.analytics.client.java.QueryException;
+import com.couchbase.analytics.client.java.internal.utils.lang.CbThrowables;
 import fit.columnar.PlatformErrorType;
 
 
 public class ErrorUtil {
   private ErrorUtil() {
     throw new AssertionError("not instantiable");
-  }
-
-  private static boolean isColumnarError(Throwable exception) {
-    String simpleName = exception.getClass().getSimpleName();
-    return switch (simpleName) {
-      case "QueryException", "InvalidCredentialException", "TimeoutException", "AnalyticsException" -> true;
-      default -> false;
-    };
   }
 
   private static fit.columnar.PlatformErrorType convertPlatformError(Throwable exception) {
@@ -43,9 +37,9 @@ public class ErrorUtil {
   public static fit.columnar.Error convertError(Throwable raw) {
     var ret = fit.columnar.Error.newBuilder();
 
-    if (isColumnarError(raw)) {
+    if (raw instanceof AnalyticsException) {
       var out = fit.columnar.ColumnarError.newBuilder()
-        .setAsString(raw.toString());
+        .setAsString(CbThrowables.getStackTraceAsString(raw));
 
       if (raw instanceof QueryException queryException) {
         out.setSubException(fit.columnar.SubColumnarError.newBuilder().setQueryException(

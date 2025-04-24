@@ -17,8 +17,6 @@
 package com.couchbase.analytics.fit.performer.query;
 
 import com.couchbase.analytics.client.java.Row;
-import com.couchbase.analytics.client.java.json.JsonArray;
-import com.couchbase.analytics.client.java.json.JsonObject;
 import com.couchbase.analytics.fit.performer.content.ContentAsUtil;
 import com.couchbase.analytics.fit.performer.util.ErrorUtil;
 import fit.columnar.QueryRowResponse;
@@ -32,14 +30,7 @@ public class QueryRowUtil {
 
   public static RowProcessingResult processRow(fit.columnar.ExecuteQueryRequest executeQueryRequest, Row row) {
     if (executeQueryRequest.hasContentAs()) {
-      var content = ContentAsUtil.contentType(
-        executeQueryRequest.getContentAs(),
-        () -> row.bytes(),
-        () -> row.asNullable(JsonArray.class),
-        () -> row.asNullable(JsonObject.class),
-        () -> row.asNullable(String.class)
-      );
-
+      var content = ContentAsUtil.contentType(executeQueryRequest.getContentAs(), row);
       if (content.isSuccess()) {
         return new RowProcessingResult(null, QueryRowResponse.newBuilder()
           // todo metadata

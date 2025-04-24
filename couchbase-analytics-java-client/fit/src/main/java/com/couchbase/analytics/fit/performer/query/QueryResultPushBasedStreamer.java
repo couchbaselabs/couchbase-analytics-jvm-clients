@@ -20,8 +20,6 @@ import com.couchbase.analytics.client.java.QueryMetadata;
 import com.couchbase.analytics.client.java.QueryOptions;
 import com.couchbase.analytics.client.java.Queryable;
 import com.couchbase.analytics.client.java.Row;
-import com.couchbase.analytics.client.java.json.JsonArray;
-import com.couchbase.analytics.client.java.json.JsonObject;
 import com.couchbase.analytics.fit.performer.content.ContentAsUtil;
 import com.couchbase.analytics.fit.performer.util.ErrorUtil;
 import fit.columnar.EmptyResultOrFailureResponse;
@@ -152,14 +150,7 @@ class PushBasedStreamer extends Thread {
 
   private RowProcessingResult processRow(Row row) {
     if (executeQueryRequest.hasContentAs()) {
-      var content = ContentAsUtil.contentType(
-        executeQueryRequest.getContentAs(),
-        () -> row.bytes(),
-        () -> row.asNullable(JsonArray.class),
-        () -> row.asNullable(JsonObject.class),
-        () -> row.asNullable(String.class)
-      );
-
+      var content = ContentAsUtil.contentType(executeQueryRequest.getContentAs(), row);
       if (content.isSuccess()) {
         return new RowProcessingResult(null, fit.columnar.QueryRowResponse.newBuilder()
           // todo metadata

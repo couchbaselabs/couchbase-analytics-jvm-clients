@@ -2,40 +2,42 @@ package com.couchbase.analytics.fit.performer.util;
 
 import com.couchbase.analytics.client.java.codec.Deserializer;
 import com.couchbase.analytics.client.java.codec.TypeRef;
-import com.couchbase.analytics.client.java.json.JsonObject;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import java.io.IOException;
+import java.lang.reflect.Type;
 
 /**
- * CustomJsonDeserializer provides a generic implementation of the Deserializer interface.
- * <p>
- * This deserializer is designed to handle the conversion of Java objects to String format
- * and back, with an additional boolean flag ("Serialized": false) that indicates whether
- * the object has been deserialized. The flag is included in the JSON payload and then
- * converted to string, making it easy to track the deserialization state of objects.
- * <p>
- * Use Cases:
- * - This deserializer can be used in scenarios where you need to deserialize
- * objects while keeping track of their deserialization state.
- * <p>
- * Limitations:
- * - The current implementation assumes that the input objects can be deserialized into
- * string format. Complex or non-standard objects may require additional handling.
- * - The `deserialize` methods in this implementation modify the original JSON object
- * by setting the `Serialized` flag to `false`, which might not be suitable for
- * all use cases.
+ * A custom deserializer for FIT that sneakily adds a field to the result
+ * so the driver can verify the SDK honored the request to use a custom deserializer.
  */
-
 public class CustomDeserializer implements Deserializer {
+  private static final JsonMapper mapper = JsonMapper.builder().build();
+
   @Override
   public <T> T deserialize(Class<T> target, byte[] input) {
-    JsonObject obj = JsonObject.fromJson(input);
-    obj.put("Serialized", false);
-    return (T) obj.toString();
+    requireObjectNode(target);
+
+    try {
+      ObjectNode obj = (ObjectNode) mapper.readTree(input);
+      obj.put("Serialized", false);
+      return (T) obj;
+
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
   public <T> T deserialize(TypeRef<T> target, byte[] input) {
-    JsonObject obj = JsonObject.fromJson(input);
-    obj.put("Serialized", false);
-    return (T) obj.toString();
+    requireObjectNode(target.type());
+    return (T) deserialize(ObjectNode.class, input);
+  }
+
+  private static void requireObjectNode(Type type) {
+    if (!type.equals(ObjectNode.class)) {
+      throw new UnsupportedOperationException("Expected target class to be ObjectNode, but got: " + type);
+    }
   }
 }
