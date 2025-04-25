@@ -19,9 +19,7 @@ package com.couchbase.analytics.fit.performer.cluster;
 
 import com.couchbase.analytics.client.java.Cluster;
 import com.couchbase.analytics.client.java.Credential;
-import com.couchbase.analytics.client.java.internal.utils.lang.CbStrings;
 
-import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,31 +32,6 @@ public class AnalyticsClusterConnection {
   // the same lifetime.
   private final List<Runnable> onClusterConnectionClose;
 
-  private static boolean hasPort(String connectionString) {
-    return URI.create(connectionString).getPort() != -1;
-  }
-
-  private static String adjustConnectionString(String connectionString) {
-    if (connectionString.startsWith("http")) {
-      return connectionString;
-    }
-
-    if (connectionString.startsWith("couchbases")) {
-      String s = "https" + CbStrings.removeStart(connectionString, "couchbases");
-      return hasPort(connectionString) ? s : s + ":18095";
-    }
-
-    if (connectionString.startsWith("couchbase")) {
-      String s = "http" + CbStrings.removeStart(connectionString, "couchbase");
-      return hasPort(connectionString) ? s : s + ":8095";
-    }
-
-    throw new IllegalArgumentException(
-      "expected connection string to start with one of "
-        + List.of("http", "https", "couchbase", "couchbases")
-        + " but got: " + connectionString);
-  }
-
   public AnalyticsClusterConnection(fit.columnar.ClusterNewInstanceRequest request,
                                     ArrayList<Runnable> onClusterConnectionClose) {
     this.request = request;
@@ -66,7 +39,7 @@ public class AnalyticsClusterConnection {
 
     if (!request.hasOptions()) {
       this.cluster = Cluster.newInstance(
-        adjustConnectionString(request.getConnectionString()),
+        request.getConnectionString(),
         Credential.of(
           request.getCredential().getUsernameAndPassword().getUsername(),
           request.getCredential().getUsernameAndPassword().getPassword()
@@ -80,7 +53,7 @@ public class AnalyticsClusterConnection {
       }
 
       this.cluster = Cluster.newInstance(
-        adjustConnectionString(request.getConnectionString()),
+        request.getConnectionString(),
         Credential.of(
           request.getCredential().getUsernameAndPassword().getUsername(),
           request.getCredential().getUsernameAndPassword().getPassword()

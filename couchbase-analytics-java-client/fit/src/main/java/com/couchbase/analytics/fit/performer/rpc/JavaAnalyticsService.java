@@ -16,13 +16,13 @@
 
 package com.couchbase.analytics.fit.performer.rpc;
 
-import com.couchbase.client.protocol.shared.EchoRequest;
-import com.couchbase.client.protocol.shared.EchoResponse;
 import com.couchbase.analytics.fit.performer.cluster.AnalyticsClusterConnection;
 import com.couchbase.analytics.fit.performer.common.exceptions.ExceptionGrpcMappingUtil;
 import com.couchbase.analytics.fit.performer.common.util.VersionUtil;
 import com.couchbase.analytics.fit.performer.modes.Mode;
 import com.couchbase.analytics.fit.performer.util.ResultUtil;
+import com.couchbase.client.protocol.shared.EchoRequest;
+import com.couchbase.client.protocol.shared.EchoResponse;
 import fit.columnar.CloseAllColumnarClustersRequest;
 import fit.columnar.ClusterCloseRequest;
 import fit.columnar.ClusterNewInstanceRequest;
@@ -54,6 +54,7 @@ public class JavaAnalyticsService extends ColumnarServiceGrpc.ColumnarServiceImp
         builder.setSdkVersion(sdkVersion);
       }
       builder.setSdk(fit.columnar.SDK.SDK_JAVA);
+      builder.setAnalyticsProduct(fit.columnar.AnalyticsProduct.ANALYTICS);
       builder.putClusterNewInstance(0, fit.columnar.PerApiElementClusterNewInstance.getDefaultInstance());
       builder.putClusterClose(0, fit.columnar.PerApiElementClusterClose.getDefaultInstance());
       // The SDK has two main modes: buffered and push-based streaming.
