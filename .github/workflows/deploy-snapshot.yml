@@ -9,6 +9,8 @@ on:
       - main
     paths-ignore:
       - '*/fit/**'
+      - '.github/workflows/**'
+      - '!.github/workflows/deploy-snapshot.yml'
 
 jobs:
   build:
