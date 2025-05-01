@@ -9,6 +9,7 @@ on:
       - main
     paths-ignore:
       - '*/fit/**'
+      - '*/examples/**'
       - '.github/workflows/**'
       - '!.github/workflows/deploy-snapshot.yml'
 
