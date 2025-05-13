@@ -1,5 +1,6 @@
 # A Docker image for the Couchbase Analytics SDK test performer for Java.
-# Build from root with:
+# Go to a directory containing couchbase-analytics-jvm-clients and transactions-fit-performer.
+# Build with this command:
 # docker build -f couchbase-analytics-jvm-clients/couchbase-analytics-java-client/fit/Dockerfile .
 
 # Use 'maven' because it has git pre-installed.
@@ -7,18 +8,20 @@
 FROM maven:3.9.9-eclipse-temurin-21 AS build
 
 WORKDIR /app
-
 COPY transactions-fit-performer transactions-fit-performer/
 COPY couchbase-analytics-jvm-clients couchbase-analytics-jvm-clients/
 
+# The MAVEN_CONFIG environment variable set by `maven` base image interferes with the wrapper, so clear it!
+ARG MAVEN_CONFIG=""
+
+ARG MAVEN_ARGS="--batch-mode -Dcheckstyle.skip -Dmaven.test.skip -Dmaven.javadoc.skip"
+
 WORKDIR /app/transactions-fit-performer
-# The MAVEN_CONFIG environment variable set by `maven` base image interferes with the wrapper, so unset it on first use!
-# Need "also-make" so the parent pom gets installed. TODO: flatten the gRPC/jvm pom!
-RUN MAVEN_CONFIG= ./mvnw --batch-mode --projects gRPC/jvm --also-make install -Dcheckstyle.skip -Dmaven.test.skip -Dmaven.javadoc.skip
+RUN ./mvnw --projects gRPC/jvm install
 
 WORKDIR /app/couchbase-analytics-jvm-clients
-RUN ./mvnw --batch-mode install -Dmaven.test.skip -Dmaven.javadoc.skip
-RUN ./mvnw --batch-mode package -Dmaven.test.skip -Dmaven.javadoc.skip --file couchbase-analytics-java-client/fit
+RUN ./mvnw install
+RUN ./mvnw package --file couchbase-analytics-java-client/fit
 
 # Multistage build to keep things small
 FROM eclipse-temurin:21-jre
