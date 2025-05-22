@@ -17,8 +17,17 @@
 package com.example.couchbase.analytics;
 
 import com.couchbase.analytics.client.java.Cluster;
+import com.couchbase.analytics.client.java.ClusterOptions;
 import com.couchbase.analytics.client.java.Credential;
+import com.couchbase.analytics.client.java.QueryOptions;
 import com.couchbase.analytics.client.java.QueryResult;
+import com.couchbase.analytics.client.java.Queryable;
+import com.couchbase.analytics.client.java.Row;
+import com.couchbase.analytics.client.java.codec.Deserializer;
+import com.couchbase.analytics.client.java.extension.reactor.ReactorQueryResult;
+import com.couchbase.analytics.client.java.extension.reactor.ReactorQueryable;
+import com.example.couchbase.analytics.reactor.ReactorExample;
+import reactor.core.publisher.Flux;
 
 import java.time.Duration;
 import java.util.List;
@@ -38,27 +47,84 @@ public class Example {
         .timeout(it -> it.queryTimeout(Duration.ofMinutes(2)))
     )) {
 
-      // Buffered query. All rows must fit in memory.
-      QueryResult result = cluster.executeQuery(
-        "select ?=1",
-        options -> options
-          .readOnly(true)
-          .parameters(List.of(1))
-      );
-      result.rows().forEach(row -> System.out.println("Got row: " + row));
+      bufferedQueryExample(cluster);
 
-      // Alternatively --
+      streamingQueryExample(cluster);
 
-      // Streaming query. Rows are processed one-by-one
-      // as they arrive from server.
-      cluster.executeStreamingQuery(
-        "select ?=1",
-        row -> System.out.println("Got row: " + row),
-        options -> options
-          .readOnly(true)
-          .parameters(List.of(1))
-      );
+      dataBindingExample(cluster);
+
+      nullRowExample(cluster);
+
+      reactorQueryExample(cluster);
     }
   }
-}
 
+  /**
+   * Executes a query, buffering all result rows in memory.
+   */
+  static void bufferedQueryExample(Queryable clusterOrScope) {
+    QueryResult result = clusterOrScope.executeQuery(
+      "select ?=1",
+      options -> options
+        .readOnly(true)
+        .parameters(List.of(1))
+    );
+    result.rows().forEach(row -> System.out.println("Got row: " + row));
+  }
+
+  /**
+   * Executes a query, processing rows one-by-one
+   * as they arrive from server.
+   */
+  static void streamingQueryExample(Queryable clusterOrScope) {
+    clusterOrScope.executeStreamingQuery(
+      "select ?=1",
+      row -> System.out.println("Got row: " + row),
+      options -> options
+        .readOnly(true)
+        .parameters(List.of(1))
+    );
+  }
+
+  /**
+   * Converts a result row to a user-defined type using the default Jackson
+   * {@link Deserializer}.
+   *
+   * @see ClusterOptions#deserializer(Deserializer)
+   * @see QueryOptions#deserializer(Deserializer)
+   */
+  static void dataBindingExample(Queryable clusterOrScope) {
+    record MyRowPojo(String greeting) {}
+
+    QueryResult result = clusterOrScope.executeQuery(
+      "SELECT 'hello world' AS greeting"
+    );
+    MyRowPojo resultRow = result.rows().getFirst().as(MyRowPojo.class);
+    System.out.println(resultRow.greeting);
+  }
+
+  /**
+   * Calls {@link Row#asNullable} because null is an expected result row value.
+   */
+  static void nullRowExample(Queryable clusterOrScope) {
+    QueryResult result = clusterOrScope.executeQuery("SELECT RAW null");
+    String nullableString = result.rows().getFirst().asNullable(String.class);
+    System.out.println(nullableString);
+  }
+
+  /**
+   * Executes a query using the optional Project Reactor extension library.
+   * <p>
+   * Requires adding {@code com.couchbase.client:couchbase-analytics-java-client-reactor} as a dependency of your project.
+   * <p>
+   * See {@link ReactorExample} for more examples.
+   */
+  static void reactorQueryExample(Queryable clusterOrScope) {
+    var reactor = ReactorQueryable.from(clusterOrScope);
+
+    Flux<Row> resultRows = reactor.executeQuery("SELECT 1")
+      .flatMapMany(ReactorQueryResult::rows);
+
+    System.out.println(resultRows.blockLast());
+  }
+}
