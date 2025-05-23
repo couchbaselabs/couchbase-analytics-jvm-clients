@@ -64,6 +64,11 @@ public final class QueryOptions {
     return this;
   }
 
+  public QueryOptions clientContextId(@Nullable String clientContextId) {
+    this.clientContextId = clientContextId;
+    return this;
+  }
+
   public QueryOptions parameters(@Nullable Map<String, ?> namedParameters) {
     this.namedParameters = namedParameters == null ? null : unmodifiableMap(new HashMap<>(namedParameters));
     return this;
@@ -156,6 +161,7 @@ public final class QueryOptions {
     void injectParams(ObjectNode query) {
       query.put(
         "client_context_id",
+        // Generating the random ID late like this means a new ID is assigned to each retry.
         clientContextId != null ? clientContextId : UUID.randomUUID().toString()
       );
 
