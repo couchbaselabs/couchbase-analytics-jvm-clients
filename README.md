@@ -48,6 +48,8 @@ Cluster cluster = Cluster.newInstance(
 A `Cluster` instance is thread-safe.
 For best performance, create a single instance and share it.
 
+When you no longer need the `Cluster` instance, call its `close()` method to release resources.
+
 To execute a query whose results fit in memory:
 
 ```java
