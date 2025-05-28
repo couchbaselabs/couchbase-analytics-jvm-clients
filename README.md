@@ -3,7 +3,7 @@
 JVM clients for Couchbase Enterprise Analytics
 
 
-## Maven coordinates
+## Maven Coordinates
 ```xml
 <dependency>
     <groupId>com.couchbase.client</groupId>
@@ -12,7 +12,7 @@ JVM clients for Couchbase Enterprise Analytics
 </dependency>
 ```
 
-## Snapshot repository
+## Snapshot Repository
 
 ```xml
 <repositories>
