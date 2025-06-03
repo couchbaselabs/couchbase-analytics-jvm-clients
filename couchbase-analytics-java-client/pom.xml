@@ -141,7 +141,7 @@
             <groupId>org.jetbrains.kotlin</groupId>
             <!--suppress KotlinMavenPluginPhase: Not compiling Kotlin; just upgrading stdlib version -->
             <artifactId>kotlin-stdlib</artifactId>
-            <version>2.1.20</version>
+            <version>2.1.21</version>
         </dependency>
         <dependency>
             <groupId>com.squareup.okio</groupId>
