@@ -206,9 +206,11 @@ class QueryExecutor {
       .header("User-Agent", userAgent)
       .header("Authorization", credential.httpAuthorizationHeaderValue())
       .post(requestBody(query));
-    if (opts.priority() == QueryPriority.HIGH) {
+
+    QueryPriority priority = opts.priority();
+    if (priority != null) {
       //noinspection UastIncorrectHttpHeaderInspection
-      requestBuilder.header("Analytics-Priority", "-1");
+      requestBuilder.header("Analytics-Priority", Integer.toString(priority.value));
     }
     Request request = requestBuilder.build();
 

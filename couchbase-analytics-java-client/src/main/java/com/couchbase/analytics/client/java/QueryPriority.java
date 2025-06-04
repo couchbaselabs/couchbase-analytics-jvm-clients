@@ -16,7 +16,49 @@
 
 package com.couchbase.analytics.client.java;
 
-public enum QueryPriority {
-  HIGH,
-  NORMAL,
+import org.jetbrains.annotations.ApiStatus;
+
+public final class QueryPriority {
+  public static final QueryPriority HIGH = new QueryPriority(-1);
+  public static final QueryPriority NORMAL = new QueryPriority(0);
+
+  final int value;
+
+  private QueryPriority(int value) {
+    this.value = value;
+  }
+
+  /**
+   * The lower the number, the higher the priority.
+   */
+  @ApiStatus.Experimental
+  public static QueryPriority of(int value) {
+    switch (value) {
+      case 0:
+        return NORMAL;
+
+      case -1:
+        return HIGH;
+
+      default:
+        return new QueryPriority(value);
+    }
+  }
+
+  @Override public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    QueryPriority priority = (QueryPriority) o;
+    return value == priority.value;
+  }
+
+  @Override
+  public int hashCode() {
+    return Integer.hashCode(value);
+  }
+
+  @Override public String toString() {
+    return "QueryPriority{" +
+      "value=" + value +
+      '}';
+  }
 }
