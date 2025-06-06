@@ -49,7 +49,6 @@ public final class QueryOptions {
   @Nullable private String clientContextId;
   @Nullable private Map<String, ?> namedParameters;
   @Nullable private List<?> positionalParameters;
-  @Nullable private QueryPriority priority;
   @Nullable private ScanConsistency scanConsistency;
   @Nullable private Duration scanWait;
   @Nullable private Deserializer deserializer;
@@ -101,11 +100,6 @@ public final class QueryOptions {
     return this;
   }
 
-  public QueryOptions priority(@Nullable QueryPriority priority) {
-    this.priority = priority;
-    return this;
-  }
-
   public QueryOptions scanConsistency(@Nullable ScanConsistency scanConsistency) {
     this.scanConsistency = scanConsistency;
     return this;
@@ -138,7 +132,6 @@ public final class QueryOptions {
     @Nullable private final String clientContextId;
     @Nullable private final Map<String, ?> namedParameters;
     @Nullable private final List<?> positionalParameters;
-    @Nullable private final QueryPriority priority;
     @Nullable private final ScanConsistency scanConsistency;
     @Nullable private final Duration scanWait;
     @Nullable private final Deserializer deserializer;
@@ -150,7 +143,6 @@ public final class QueryOptions {
       this.clientContextId = builder.clientContextId;
       this.namedParameters = builder.namedParameters;
       this.positionalParameters = builder.positionalParameters;
-      this.priority = builder.priority;
       this.scanConsistency = builder.scanConsistency;
       this.scanWait = builder.scanWait;
       this.deserializer = builder.deserializer;
@@ -231,7 +223,6 @@ public final class QueryOptions {
         ", clientContextId='" + clientContextId + '\'' +
         ", namedParameters=" + namedParameters +
         ", positionalParameters=" + positionalParameters +
-        ", priority=" + priority +
         ", scanConsistency=" + scanConsistency +
         ", scanWait=" + scanWait +
         ", deserializer=" + deserializer +
@@ -253,10 +244,6 @@ public final class QueryOptions {
     ) {
       byte[] jsonArrayBytes = serializer.serialize(value);
       return Mapper.readTree(jsonArrayBytes);
-    }
-
-    public @Nullable QueryPriority priority() {
-      return priority;
     }
 
     public boolean readOnly() {

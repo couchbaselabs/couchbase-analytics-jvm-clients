@@ -207,11 +207,6 @@ class QueryExecutor {
       .header("Authorization", credential.httpAuthorizationHeaderValue())
       .post(requestBody(query));
 
-    QueryPriority priority = opts.priority();
-    if (priority != null) {
-      //noinspection UastIncorrectHttpHeaderInspection
-      requestBuilder.header("Analytics-Priority", Integer.toString(priority.value));
-    }
     Request request = requestBuilder.build();
 
     OkHttpClient client = httpClient.clientWithTimeout(timeout);

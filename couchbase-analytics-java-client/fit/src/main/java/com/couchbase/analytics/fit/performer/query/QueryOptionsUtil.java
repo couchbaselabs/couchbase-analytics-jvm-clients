@@ -17,7 +17,6 @@
 package com.couchbase.analytics.fit.performer.query;
 
 import com.couchbase.analytics.client.java.QueryOptions;
-import com.couchbase.analytics.client.java.QueryPriority;
 import com.couchbase.analytics.client.java.ScanConsistency;
 import com.couchbase.analytics.fit.performer.util.CustomDeserializer;
 import com.couchbase.analytics.fit.performer.util.grpc.ProtobufConversions;
@@ -36,8 +35,8 @@ public class QueryOptionsUtil {
 
     return options -> {
       var opts = executeQueryRequest.getOptions();
-      if (opts.hasPriority()) {
-        options.priority(opts.getPriority() ? QueryPriority.HIGH : QueryPriority.NORMAL);
+      if (opts.hasPriority() && opts.getPriority()) {
+        throw new UnsupportedOperationException("Specifying high priority query is not supported.");
       }
       if (opts.hasParametersPositional()) {
         options.parameters(ProtobufConversions.protobufListValueToList(opts.getParametersPositional()));
