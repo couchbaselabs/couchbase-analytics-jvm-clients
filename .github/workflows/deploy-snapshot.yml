@@ -46,4 +46,4 @@ jobs:
           MAVEN_GPG_PASSPHRASE: ''
 
       - name: Remove artifacts from Maven repo so they're not cached
-        run: rm -rfv ~/.m2/repository/com/couchbase/
+        run: rm -rfv ~/.m2/repository/com/couchbase/client/
