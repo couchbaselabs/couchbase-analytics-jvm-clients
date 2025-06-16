@@ -1,0 +1,65 @@
+name: Run FIT Tests
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Run FIT Tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - java-distribution: 'temurin'
+            java-version: '21'
+
+#          - java-distribution: 'temurin'
+#            java-version: '8'
+
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: couchbase-jvm-clients
+
+      - uses: actions/checkout@v4
+        with:
+          repository: couchbaselabs/transactions-fit-performer
+          path: transactions-fit-performer
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: ${{ matrix.java-distribution }}
+          # Version from the matrix is for running tests. Second version is for building the SDK.
+          java-version: |
+            ${{ matrix.java-version }}
+            17
+          cache: 'maven'
+
+      - name: sanity check
+        run: |
+          ls couchbase-jvm-clients
+          ls transactions-fit-performer
+
+#      - name: Build performer image
+#        run: docker build -f couchbase-jvm-clients/java-fit-performer/Dockerfile -t java-performer .
+#
+#      - name: Run performer
+#        run: docker run --detach -e LOG_LEVEL=DEBUG -p 8060:8060 java-performer
+
+#
+#      - name: Install FIT gRPC library
+#        run: |
+#          cd transactions-fit-performer
+#          ./mvnw --batch-mode install -DskipTests
+#
+#      - name: Publish test results
+#        run: |
+#          curl https://raw.githubusercontent.com/couchbaselabs/junit-markdown/refs/heads/main/JunitMarkdown.java --output ${{ runner.temp }}/JunitMarkdown.java
+#          java ${{ runner.temp }}/JunitMarkdown.java . >> $GITHUB_STEP_SUMMARY
