@@ -22,17 +22,19 @@ import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.couchbase.analytics.client.java.internal.utils.lang.CbCollections.isNullOrEmpty;
 import static com.couchbase.analytics.client.java.internal.utils.lang.CbCollections.listOf;
 import static com.couchbase.analytics.client.java.internal.utils.lang.CbStrings.nullToEmpty;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableMap;
 
@@ -54,11 +56,11 @@ class ErrorCodeAndMessage {
   public ErrorCodeAndMessage(@JsonProperty("code") int code,
                              @JsonProperty("msg") String message,
                              @JsonProperty("retry") @JsonAlias("retriable") boolean retry, // query uses "retry", analytics uses "retriable"
-                             @JsonProperty("reason") Map<String, Object> reason) {
+                             @JsonProperty("reason") @Nullable Map<String, Object> reason) {
     this.code = code;
     this.message = nullToEmpty(message);
     this.retry = retry;
-    this.reason = reason;
+    this.reason = reason == null ? emptyMap() : unmodifiableMap(new LinkedHashMap<>(reason));
   }
 
   public int code() {
@@ -87,8 +89,8 @@ class ErrorCodeAndMessage {
   @Override
   public String toString() {
     return code + " " + message +
-      (!isNullOrEmpty(reason) ? " Reason: " + reason : "") +
-      (!isNullOrEmpty(context) ? " Context: " + context : "");
+      (!reason.isEmpty() ? " Reason: " + reason : "") +
+      (!context.isEmpty() ? " Context: " + context : "");
   }
 
   public static List<ErrorCodeAndMessage> fromJsonArray(byte[] jsonArray) {
