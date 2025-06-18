@@ -37,8 +37,8 @@ import static java.util.stream.Collectors.joining;
 public class TrustSource {
   private static final TrustSource INSECURE = new TrustSource(null, new TrustManagerFactory(null, null, null) {});
 
-  @Nullable private final List<X509Certificate> certificates;
-  @Nullable private final TrustManagerFactory factory;
+  private @Nullable final List<X509Certificate> certificates;
+  private @Nullable final TrustManagerFactory factory;
 
   private TrustSource(
     @Nullable List<X509Certificate> certificates,

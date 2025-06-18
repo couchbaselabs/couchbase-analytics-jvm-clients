@@ -41,7 +41,7 @@ public final class SecurityOptions {
   );
 
   private List<String> cipherSuites = defaultCipherSuites;
-  @Nullable private TrustSource trustSource = null;
+  private @Nullable TrustSource trustSource = null;
   private boolean disableServerCertificateVerification = false;
 
   Unmodifiable build() {

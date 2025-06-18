@@ -31,8 +31,8 @@ public final class TimeoutOptions {
   TimeoutOptions() {
   }
 
-  @Nullable private Duration connectTimeout;
-  @Nullable private Duration queryTimeout;
+  private @Nullable Duration connectTimeout;
+  private @Nullable Duration queryTimeout;
 
   Unmodifiable build() {
     return new Unmodifiable(this);

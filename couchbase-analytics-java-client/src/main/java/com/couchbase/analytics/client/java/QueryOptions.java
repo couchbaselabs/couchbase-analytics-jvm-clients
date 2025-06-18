@@ -45,15 +45,15 @@ import static java.util.Collections.unmodifiableMap;
  * and {@link Queryable#executeStreamingQuery(String, Consumer, Consumer)}.
  */
 public final class QueryOptions {
-  @Nullable private Duration timeout;
-  @Nullable private String clientContextId;
-  @Nullable private Map<String, ?> namedParameters;
-  @Nullable private List<?> positionalParameters;
-  @Nullable private ScanConsistency scanConsistency;
-  @Nullable private Duration scanWait;
-  @Nullable private Deserializer deserializer;
-  @Nullable private Boolean readOnly;
-  @Nullable private Map<String, ?> raw;
+  private @Nullable Duration timeout;
+  private @Nullable String clientContextId;
+  private @Nullable Map<String, ?> namedParameters;
+  private @Nullable List<?> positionalParameters;
+  private @Nullable ScanConsistency scanConsistency;
+  private @Nullable Duration scanWait;
+  private @Nullable Deserializer deserializer;
+  private @Nullable Boolean readOnly;
+  private @Nullable Map<String, ?> raw;
 
   QueryOptions() {
   }
@@ -128,15 +128,15 @@ public final class QueryOptions {
   }
 
   static class Unmodifiable {
-    @Nullable private final Duration timeout;
-    @Nullable private final String clientContextId;
-    @Nullable private final Map<String, ?> namedParameters;
-    @Nullable private final List<?> positionalParameters;
-    @Nullable private final ScanConsistency scanConsistency;
-    @Nullable private final Duration scanWait;
-    @Nullable private final Deserializer deserializer;
-    @Nullable private final Boolean readOnly;
-    @Nullable private final Map<String, ?> raw;
+    private final @Nullable Duration timeout;
+    private final @Nullable String clientContextId;
+    private final @Nullable Map<String, ?> namedParameters;
+    private final @Nullable List<?> positionalParameters;
+    private final @Nullable ScanConsistency scanConsistency;
+    private final @Nullable Duration scanWait;
+    private final @Nullable Deserializer deserializer;
+    private final @Nullable Boolean readOnly;
+    private final @Nullable Map<String, ?> raw;
 
     Unmodifiable(QueryOptions builder) {
       this.timeout = builder.timeout;
