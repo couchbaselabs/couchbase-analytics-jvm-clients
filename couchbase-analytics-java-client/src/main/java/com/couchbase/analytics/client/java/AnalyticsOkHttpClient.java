@@ -244,6 +244,15 @@ class AnalyticsOkHttpClient implements Closeable {
       .build();
   }
 
+  /**
+   * Prevent reuse of any existing connections.
+   * <p>
+   * Ideally we'd target a specific connection, but OkHttp does not currently support that.
+   */
+  public void evictAll() {
+    client.connectionPool().evictAll();
+  }
+
   @Override
   public void close() {
     client.dispatcher().executorService().shutdown();

@@ -53,6 +53,7 @@ import java.util.function.Consumer;
 import static com.couchbase.analytics.client.java.internal.utils.lang.CbObjects.defaultIfNull;
 import static com.couchbase.analytics.client.java.internal.utils.lang.CbThrowables.hasCause;
 import static com.couchbase.analytics.client.java.internal.utils.time.GolangDuration.encodeDurationToMs;
+import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -212,6 +213,8 @@ class QueryExecutor {
     OkHttpClient client = httpClient.clientWithTimeout(timeout);
     Call call = client.newCall(request);
 
+    boolean allowConnectionReuse = false;
+
     try (
       AnalyticsResponseParser parser = new AnalyticsResponseParser(rowBytes -> {
         try {
@@ -231,15 +234,18 @@ class QueryExecutor {
       }
 
       if (body == null) {
+        maybeThrowSyntheticServiceNotAvailable(response);
         throw new AnalyticsException("HTTP response had no body; this is unexpected! " + httpStatusMessage);
       }
 
       try (InputStream is = body.byteStream()) {
         parser.feed(is);
         parser.endOfInput();
+        allowConnectionReuse = true; // success!
 
       } catch (RowActionException e) {
         // Catch separately in case the user's row action threw UncheckedIOException!
+        allowConnectionReuse = true; // the failure wasn't due to a degraded node or dead connection.
         throw (RuntimeException) e.getCause();
 
       } catch (UncheckedIOException e) {
@@ -251,6 +257,8 @@ class QueryExecutor {
       }
 
       if (parser.requestId == null) {
+        maybeThrowSyntheticServiceNotAvailable(response);
+
         // Response wasn't a JSON Object with a "requestID" field :-(
         throw new AnalyticsException("HTTP body did not matched expected query response format. " + httpStatusMessage);
       }
@@ -270,7 +278,40 @@ class QueryExecutor {
       }
 
       throw new AnalyticsException(e);
+
+    } finally {
+      if (!allowConnectionReuse) {
+        preventConnectionReuse();
+      }
     }
+  }
+
+  /**
+   * In some deployments, we might get HTTP status code 503 (Service Unavailable)
+   * from an intermediary like a proxy or load balancer. In that case, throw a
+   * {@link QueryException} with the same error code as if the response
+   * had come from the Analytics cluster. This has two benefits:
+   * <ul>
+   * <li> It engages the SDK's automatic retry mechanism, since the synthetic
+   * exception is marked as retriable.
+   *
+   * <li> It lets the user handle "service unavailable" the same way, regardless of
+   * whether the error came from a load balancer or the analytics server.
+   * </ul>
+   */
+  private static void maybeThrowSyntheticServiceNotAvailable(Response response) {
+    if (response.code() == 503) {
+      int analyticsServiceNotAvailable = 23000;
+      String message = "Got HTTP status " + statusLine(response) + " -- but there was no analytics response body. This might indicate the HTTP response came from a proxy or load balancer.";
+      boolean retriable = true;
+      throw new QueryException(new ErrorCodeAndMessage(analyticsServiceNotAvailable, message, retriable, emptyMap()));
+    }
+  }
+
+  private void preventConnectionReuse() {
+    // Can't mark just one connection as not reusable, so...
+    log.debug("Clearing connection pool to avoid potentially reusing a connection to a degraded node.");
+    httpClient.evictAll();
   }
 
   private String tlsHandshakeErrorMessage(Throwable tlsHandshakeError) {

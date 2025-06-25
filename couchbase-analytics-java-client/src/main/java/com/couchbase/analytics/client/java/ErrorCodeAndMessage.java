@@ -88,7 +88,7 @@ class ErrorCodeAndMessage {
 
   @Override
   public String toString() {
-    return code + " " + message +
+    return code + " " + message + "; retriable=" + retry +
       (!reason.isEmpty() ? " Reason: " + reason : "") +
       (!context.isEmpty() ? " Context: " + context : "");
   }
