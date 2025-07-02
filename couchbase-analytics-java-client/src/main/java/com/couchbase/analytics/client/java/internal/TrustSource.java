@@ -35,7 +35,15 @@ import static java.util.stream.Collectors.joining;
  * Either a {@link TrustManagerFactory} XOR a list of {@link X509Certificate}.
  */
 public class TrustSource {
-  private static final TrustSource INSECURE = new TrustSource(null, new TrustManagerFactory(null, null, null) {});
+  private static final TrustSource INSECURE = new TrustSource(null, new TrustManagerFactory(null, null, null) {
+    @Override public String toString() {
+      return "InsecureTrustManagerFactory";
+    }
+  }) {
+    @Override public String toString() {
+      return "InsecureTrustSource";
+    }
+  };
 
   private @Nullable final List<X509Certificate> certificates;
   private @Nullable final TrustManagerFactory factory;

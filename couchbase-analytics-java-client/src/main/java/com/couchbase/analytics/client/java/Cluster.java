@@ -29,6 +29,7 @@ import java.util.function.Consumer;
 
 import static com.couchbase.analytics.client.java.internal.utils.lang.CbCollections.listOf;
 import static com.couchbase.analytics.client.java.internal.utils.lang.CbCollections.setOf;
+import static java.util.Objects.requireNonNull;
 
 public class Cluster implements Queryable, Closeable {
   private static final Logger log = LoggerFactory.getLogger(Cluster.class);
@@ -40,6 +41,8 @@ public class Cluster implements Queryable, Closeable {
 
   final QueryExecutor queryExecutor;
 
+  private final String connectionString;
+  private final ClusterOptions.Unmodifiable options;
 
   private static HttpUrl parseAnalyticsUrl(String s) {
     HttpUrl url = HttpUrl.get(s);
@@ -69,6 +72,9 @@ public class Cluster implements Queryable, Closeable {
   }
 
   private Cluster(String connectionString, Credential credential, ClusterOptions.Unmodifiable options) {
+    this.connectionString = requireNonNull(connectionString);
+    this.options = requireNonNull(options);
+
     HttpUrl url = parseAnalyticsUrl(connectionString);
     this.queryExecutor = new QueryExecutor(
       new AnalyticsOkHttpClient(options, url, credential),
@@ -100,6 +106,14 @@ public class Cluster implements Queryable, Closeable {
     }
   }
 
+  @Override
+  public String toString() {
+    return "Cluster{" +
+      "connectionString='" + connectionString + '\'' +
+      ", options=" + options +
+      '}';
+  }
+
   public static Cluster newInstance(String connectionString, Credential credential) {
     return newInstance(connectionString, credential, options -> {
     });
@@ -114,7 +128,9 @@ public class Cluster implements Queryable, Closeable {
     ClusterOptions opts = new ClusterOptions();
     options.accept(opts);
     applyConnectionStringParameters(opts, HttpUrl.get(connectionString));
-    return new Cluster(withoutQueryParameters(connectionString), credential, opts.build());
+    Cluster cluster = new Cluster(withoutQueryParameters(connectionString), credential, opts.build());
+    log.info("Cluster.newInstance() returns {}", cluster);
+    return cluster;
   }
 
   private static LinkedHashMap<String, String> queryParameters(HttpUrl url) {

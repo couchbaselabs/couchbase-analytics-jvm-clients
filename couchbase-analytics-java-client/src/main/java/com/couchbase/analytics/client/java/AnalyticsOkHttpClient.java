@@ -36,6 +36,7 @@ import org.jspecify.annotations.Nullable;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
@@ -85,7 +86,17 @@ class AnalyticsOkHttpClient implements Closeable {
     return builder.build();
   }
 
-  private static final HostnameVerifier insecureHostnameVerifier = (hostname, session) -> true;
+  private static final HostnameVerifier insecureHostnameVerifier = new HostnameVerifier() {
+    @Override
+    public boolean verify(String hostname, SSLSession session) {
+      return true;
+    }
+
+    @Override
+    public String toString() {
+      return "InsecureHostnameVerifier";
+    }
+  };
 
   public AnalyticsOkHttpClient(ClusterOptions.Unmodifiable options, HttpUrl url, Credential credential) {
     this.defaultQueryTimeout = options.timeout().queryTimeout();
@@ -272,6 +283,11 @@ class AnalyticsOkHttpClient implements Closeable {
     @Override
     public X509Certificate[] getAcceptedIssuers() {
       return new X509Certificate[0];
+    }
+
+    @Override
+    public String toString() {
+      return "InsecureTrustManager";
     }
   };
 
