@@ -19,6 +19,8 @@ package com.couchbase.analytics.client.java;
 import com.couchbase.analytics.client.java.internal.Certificates;
 import com.couchbase.analytics.client.java.internal.utils.BuilderPropertySetter;
 import okhttp3.HttpUrl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.util.LinkedHashMap;
@@ -29,6 +31,7 @@ import static com.couchbase.analytics.client.java.internal.utils.lang.CbCollecti
 import static com.couchbase.analytics.client.java.internal.utils.lang.CbCollections.setOf;
 
 public class Cluster implements Queryable, Closeable {
+  private static final Logger log = LoggerFactory.getLogger(Cluster.class);
 
   private static final BuilderPropertySetter propertySetter = BuilderPropertySetter.builder()
     .registerCommonTypes()
@@ -73,6 +76,28 @@ public class Cluster implements Queryable, Closeable {
       credential,
       options
     );
+
+    warnIfConfigurationIsInsecure(url, options);
+  }
+
+  private static void warnIfConfigurationIsInsecure(
+    HttpUrl url,
+    ClusterOptions.Unmodifiable options
+  ) {
+    boolean insecure = false;
+
+    if (!url.isHttps()) {
+      log.warn("Insecure configuration: URL does not use `https` scheme.");
+      insecure = true;
+
+    } else if (options.security().trustSource().isInsecure()) {
+      insecure = true;
+      log.warn("Insecure configuration: Server certificate verification was explicitly disabled.");
+    }
+
+    if (insecure) {
+      log.debug("Insecure configuration was created here:", new RuntimeException("Insecure configuration"));
+    }
   }
 
   public static Cluster newInstance(String connectionString, Credential credential) {

@@ -118,7 +118,9 @@ public class TrustSource {
   }
 
   public boolean isInsecure() {
-    return this == INSECURE;
+    return this == INSECURE
+      // Best effort check for user-provided things like Netty's InsecureTrustManagerFactory
+      || (factory != null && factory.getClass().getName().contains("Insecure"));
   }
 
   @Override
