@@ -116,7 +116,7 @@ public final class QueryOptions {
    * <p>
    * If not specified, defaults to the cluster's default max retries.
    *
-   * @see ClusterOptions#deserializer(Deserializer)
+   * @see ClusterOptions#maxRetries(Integer)
    */
   public QueryOptions maxRetries(@Nullable Integer maxRetries) {
     this.maxRetries = maxRetries;
