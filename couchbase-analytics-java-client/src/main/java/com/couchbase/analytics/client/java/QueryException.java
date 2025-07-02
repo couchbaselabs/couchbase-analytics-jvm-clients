@@ -57,4 +57,14 @@ public final class QueryException extends AnalyticsException {
   public String serverMessage() {
     return errorCodeAndMessage.message();
   }
+
+  /**
+   * Returns true if the retry limit was reached, and it's safe to retry
+   * the same query later.
+   *
+   * @see QueryOptions#maxRetries(Integer)
+   */
+  public boolean retryable() {
+    return errorCodeAndMessage.retry();
+  }
 }
