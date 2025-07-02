@@ -130,13 +130,14 @@ class QueryExecutor {
     options.accept(queryOptions);
     QueryOptions.Unmodifiable opts = queryOptions.build();
 
+    int maxRetries = defaultIfNull(opts.maxRetries(), clusterOptions.maxRetries());
     Deserializer deserializer = defaultIfNull(opts.deserializer(), defaultDeserializer);
     Duration timeout = defaultIfNull(opts.timeout(), clusterOptions.timeout().queryTimeout());
 
     Deadline retryDeadline = Deadline.of(timeout);
 
     try {
-      for (int attempt = 0; ; attempt++) {
+      for (int attempt = 0; attempt >= 0 && attempt <= maxRetries; attempt++) {
         try {
           return executeStreamingQueryOnce(queryContext, statement, rowAction, opts, deserializer, timeout);
 
@@ -170,6 +171,21 @@ class QueryExecutor {
       }
       throw e;
     }
+
+    requireNonNull(prevException, "should not be here with null prevException");
+    if (maxRetries > 0) {
+      prevException.addSuppressed(newRuntimeExceptionWithoutStackTrace("Retries exhausted: " + maxRetries));
+    }
+    throw prevException;
+  }
+
+  private static RuntimeException newRuntimeExceptionWithoutStackTrace(String message) {
+    return new RuntimeException(message) {
+      @Override
+      public synchronized Throwable fillInStackTrace() {
+        return this;
+      }
+    };
   }
 
   private static void sleep(Duration d) {

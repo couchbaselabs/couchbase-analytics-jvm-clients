@@ -54,6 +54,7 @@ public final class QueryOptions {
   private @Nullable Deserializer deserializer;
   private @Nullable Boolean readOnly;
   private @Nullable Map<String, ?> raw;
+  private @Nullable Integer maxRetries;
 
   QueryOptions() {
   }
@@ -111,6 +112,18 @@ public final class QueryOptions {
   }
 
   /**
+   * Limits the number of times a failed retriable request is retried.
+   * <p>
+   * If not specified, defaults to the cluster's default max retries.
+   *
+   * @see ClusterOptions#deserializer(Deserializer)
+   */
+  public QueryOptions maxRetries(@Nullable Integer maxRetries) {
+    this.maxRetries = maxRetries;
+    return this;
+  }
+
+  /**
    * Specifies arbitrary name-value pairs to include the query request JSON.
    * <p>
    * Marked as "experimental" because this might not be supported by future
@@ -137,6 +150,7 @@ public final class QueryOptions {
     private final @Nullable Deserializer deserializer;
     private final @Nullable Boolean readOnly;
     private final @Nullable Map<String, ?> raw;
+    private final @Nullable Integer maxRetries;
 
     Unmodifiable(QueryOptions builder) {
       this.timeout = builder.timeout;
@@ -148,6 +162,7 @@ public final class QueryOptions {
       this.deserializer = builder.deserializer;
       this.readOnly = builder.readOnly;
       this.raw = builder.raw;
+      this.maxRetries = builder.maxRetries;
     }
 
     void injectParams(ObjectNode query) {
@@ -220,6 +235,7 @@ public final class QueryOptions {
     public String toString() {
       return "QueryOptions{" +
         "timeout=" + timeout +
+        ", maxRetries=" + maxRetries +
         ", clientContextId='" + clientContextId + '\'' +
         ", namedParameters=" + namedParameters +
         ", positionalParameters=" + positionalParameters +
@@ -282,5 +298,8 @@ public final class QueryOptions {
       return deserializer;
     }
 
+    public @Nullable Integer maxRetries() {
+      return maxRetries;
+    }
   }
 }

@@ -22,6 +22,8 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.function.Consumer;
 
+import static com.couchbase.analytics.client.java.internal.utils.lang.CbObjects.defaultIfNull;
+
 /**
  * A mutable builder for configuring the cluster's behavior.
  *
@@ -31,6 +33,7 @@ public final class ClusterOptions {
   @Nullable Deserializer deserializer;
   final SecurityOptions security = new SecurityOptions();
   final TimeoutOptions timeout = new TimeoutOptions();
+  @Nullable Integer maxRetries;
 
   ClusterOptions() {
   }
@@ -56,6 +59,24 @@ public final class ClusterOptions {
     return this;
   }
 
+  /**
+   * Default retry limit for failed retriable queries.
+   * <p>
+   * If not specified, defaults to {@value Unmodifiable#DEFAULT_MAX_RETRIES}.
+   * <p>
+   * Can be overridden on a per-query basis by calling
+   * {@link QueryOptions#maxRetries(Integer)}.
+   *
+   * @throws IllegalArgumentException if the value is negative
+   */
+  public ClusterOptions maxRetries(@Nullable Integer maxRetries) {
+    if (maxRetries != null && maxRetries < 0) {
+      throw new IllegalArgumentException("maxRetries must be non-negative, but got: " + maxRetries);
+    }
+    this.maxRetries = maxRetries;
+    return this;
+  }
+
   public ClusterOptions security(Consumer<SecurityOptions> optionsCustomizer) {
     optionsCustomizer.accept(this.security);
     return this;
@@ -67,13 +88,17 @@ public final class ClusterOptions {
   }
 
   static class Unmodifiable {
+    private static final int DEFAULT_MAX_RETRIES = 7;
+
     private final TimeoutOptions.Unmodifiable timeout;
     private final SecurityOptions.Unmodifiable security;
     private final Deserializer deserializer;
+    private final int maxRetries;
 
     Unmodifiable(ClusterOptions builder) {
       this.timeout = builder.timeout.build();
       this.security = builder.security.build();
+      this.maxRetries = defaultIfNull(builder.maxRetries, DEFAULT_MAX_RETRIES);
 
       this.deserializer = builder.deserializer != null
         ? builder.deserializer
@@ -92,12 +117,17 @@ public final class ClusterOptions {
       return deserializer;
     }
 
+    public int maxRetries() {
+      return maxRetries;
+    }
+
     @Override
     public String toString() {
       return "ClusterOptions{" +
         "timeout=" + timeout +
         ", security=" + security +
         ", deserializer=" + deserializer +
+        ", maxRetries=" + maxRetries +
         '}';
     }
 
