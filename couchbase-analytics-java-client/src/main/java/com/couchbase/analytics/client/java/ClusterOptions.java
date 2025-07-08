@@ -18,6 +18,7 @@ package com.couchbase.analytics.client.java;
 
 import com.couchbase.analytics.client.java.codec.Deserializer;
 import com.couchbase.analytics.client.java.internal.DefaultJacksonDeserializerHolder;
+import org.jetbrains.annotations.ApiStatus.Experimental;
 import org.jspecify.annotations.Nullable;
 
 import java.util.function.Consumer;
@@ -117,6 +118,7 @@ public final class ClusterOptions {
       return deserializer;
     }
 
+    @Experimental
     public int maxRetries() {
       return maxRetries;
     }

@@ -118,6 +118,7 @@ public final class QueryOptions {
    *
    * @see ClusterOptions#maxRetries(Integer)
    */
+  @Experimental
   public QueryOptions maxRetries(@Nullable Integer maxRetries) {
     this.maxRetries = maxRetries;
     return this;
