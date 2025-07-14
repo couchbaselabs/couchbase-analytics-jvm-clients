@@ -58,8 +58,8 @@ public class AnalyticsClusterConnection {
           request.getCredential().getUsernameAndPassword().getUsername(),
           request.getCredential().getUsernameAndPassword().getPassword()
         ),
-        env -> env
-          .timeout(timeout -> {
+        env -> {
+          env.timeout(timeout -> {
             if (options.hasTimeout()) {
               var timeoutOptions = options.getTimeout();
               if (timeoutOptions.hasConnectTimeout()) {
@@ -93,7 +93,11 @@ public class AnalyticsClusterConnection {
                 sec.cipherSuites(secOptions.getCipherSuitesList());
               }
             }
-          }));
+          });
+          if (options.hasMaxRetries()) {
+            env.maxRetries(options.getMaxRetries());
+          }
+        });
     }
   }
 
