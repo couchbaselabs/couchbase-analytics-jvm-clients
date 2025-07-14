@@ -64,6 +64,9 @@ public class QueryOptionsUtil {
         CustomDeserializer customDeserializer = new CustomDeserializer();
         options.deserializer(customDeserializer);
       }
+      if (opts.hasMaxRetries()) {
+        options.maxRetries(opts.getMaxRetries());
+      }
     };
   }
 }
