@@ -5,7 +5,7 @@
 <dependency>
     <groupId>com.couchbase.client</groupId>
     <artifactId>couchbase-analytics-java-client-reactor</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>x.y.z</version>
 </dependency>
 ```
 ## Snapshot repository
