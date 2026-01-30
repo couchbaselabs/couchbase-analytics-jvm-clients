@@ -120,15 +120,16 @@ class AnalyticsOkHttpClient implements Closeable {
     TrustManagerFactory trustManagerFactory = trustSource.trustManagerFactory();
 
     HandshakeCertificates handshakeCertificates = getHandshakeCertificates(credential, options.security().trustSource());
+    KeyManager[] keyManagers = new KeyManager[]{handshakeCertificates.keyManager()};
 
     if (trustSource.isInsecure()) {
       clientBuilder.hostnameVerifier(insecureHostnameVerifier);
-      clientBuilder.sslSocketFactory(insecureSslSocketFactory, insecureTrustManager);
+      clientBuilder.sslSocketFactory(newInsecureSocketFactory(keyManagers), insecureTrustManager);
 
     } else if (trustManagerFactory != null) {
       clientBuilder.sslSocketFactory(
         newSocketFactory(
-          new KeyManager[]{handshakeCertificates.keyManager()}, // get client certs from usual place
+          keyManagers, // get client certs from usual place
           trustManagerFactory // let user override the "trust" side of things
         ),
         firstX509TrustManager(trustManagerFactory)
@@ -291,10 +292,8 @@ class AnalyticsOkHttpClient implements Closeable {
     }
   };
 
-  private static final SSLSocketFactory insecureSslSocketFactory = newInsecureSocketFactory();
-
-  private static SSLSocketFactory newInsecureSocketFactory() {
-    return newSocketFactory(null, new TrustManager[]{insecureTrustManager});
+  private static SSLSocketFactory newInsecureSocketFactory(KeyManager @Nullable [] keyManagers) {
+    return newSocketFactory(keyManagers, new TrustManager[]{insecureTrustManager});
   }
 
   private static SSLSocketFactory newSocketFactory(KeyManager @Nullable [] keyManagers, TrustManagerFactory trustManagerFactory) {
