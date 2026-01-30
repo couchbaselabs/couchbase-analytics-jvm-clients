@@ -39,10 +39,12 @@ public class Cluster implements Queryable, Closeable {
     .pathComponentTransformer(Cluster::lowerSnakeCaseToLowerCamelCase)
     .build();
 
-  final QueryExecutor queryExecutor;
+  volatile QueryExecutor queryExecutor;
+  private volatile Credential credential;
 
   private final String connectionString;
   private final ClusterOptions.Unmodifiable options;
+  private final HttpUrl url;
 
   private static HttpUrl parseAnalyticsUrl(String s) {
     HttpUrl url = HttpUrl.get(s);
@@ -71,19 +73,30 @@ public class Cluster implements Queryable, Closeable {
     return builder.build();
   }
 
-  private Cluster(String connectionString, Credential credential, ClusterOptions.Unmodifiable options) {
+  private Cluster(String connectionString, Credential initalCredential, ClusterOptions.Unmodifiable options) {
     this.connectionString = requireNonNull(connectionString);
     this.options = requireNonNull(options);
+    this.credential = requireNonNull(initalCredential);
+    this.url = parseAnalyticsUrl(connectionString);
+    this.queryExecutor = newQueryExecutor(this.options, this.url, this.credential);
+    warnIfConfigurationIsInsecure(url, options);
+  }
 
-    HttpUrl url = parseAnalyticsUrl(connectionString);
-    this.queryExecutor = new QueryExecutor(
-      new AnalyticsOkHttpClient(options, url, credential),
+  private static QueryExecutor newQueryExecutor(
+    ClusterOptions.Unmodifiable options,
+    HttpUrl url,
+    Credential credential
+  ) {
+    return new QueryExecutor(
+      new AnalyticsOkHttpClient(
+        options,
+        url,
+        credential
+      ),
       url,
       credential,
       options
     );
-
-    warnIfConfigurationIsInsecure(url, options);
   }
 
   private static void warnIfConfigurationIsInsecure(
@@ -204,6 +217,27 @@ public class Cluster implements Queryable, Closeable {
     return sb.toString();
   }
 
+  /**
+   * Sets the credential to use for future requests.
+   *
+   * @throws IllegalStateException if the given credential is of a different type than the current credential
+   * (username and password / client certificate).
+   */
+  public void credential(Credential newCredential) {
+    requireNonNull(newCredential);
+
+    Class<?> oldClass = this.credential.getClass();
+    Class<?> newClass = newCredential.getClass();
+    if (!newClass.equals(oldClass)) {
+      throw new IllegalStateException("Switching credential types at runtime is not supported; cannot switch from " + oldClass + " to " + newClass);
+    }
+
+    this.credential = requireNonNull(newCredential);
+    this.queryExecutor = newQueryExecutor(this.options, this.url, this.credential);
+
+    // Don't close the old query executor, because we don't want to interfere with in-flight requests.
+    // The OkHttp resources automatically release themselves after a period of inactivity.
+  }
 
   /**
    * Returns the database in this cluster with the given name.
