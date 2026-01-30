@@ -221,8 +221,12 @@ class QueryExecutor {
     Request.Builder requestBuilder = new Request.Builder()
       .url(url)
       .header("User-Agent", userAgent)
-      .header("Authorization", credential.httpAuthorizationHeaderValue())
       .post(requestBody(query));
+
+    String authHeaderValue = credential.httpAuthorizationHeaderValue();
+    if (authHeaderValue != null) {
+      requestBuilder.header("Authorization", authHeaderValue);
+    }
 
     Request request = requestBuilder.build();
 
