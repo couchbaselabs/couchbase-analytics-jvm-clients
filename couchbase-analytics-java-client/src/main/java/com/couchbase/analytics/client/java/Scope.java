@@ -16,6 +16,7 @@
 
 package com.couchbase.analytics.client.java;
 
+import com.couchbase.analytics.client.java.internal.RawQueryMetadata;
 import com.couchbase.analytics.client.java.internal.ThreadSafe;
 
 import java.util.function.Consumer;
@@ -63,7 +64,8 @@ public final class Scope implements Queryable {
     Consumer<Row> rowAction,
     Consumer<QueryOptions> options
   ) {
-    return cluster.queryExecutor.executeStreamingQueryWithRetry(queryContext, statement, rowAction, options);
+    RawQueryMetadata raw = cluster.queryExecutor.executeStreamingQueryWithRetry(queryContext, statement, rowAction, options);
+    return new QueryMetadata(raw);
   }
 
   @Override

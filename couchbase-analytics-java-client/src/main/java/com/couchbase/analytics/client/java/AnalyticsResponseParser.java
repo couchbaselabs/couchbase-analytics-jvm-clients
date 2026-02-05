@@ -16,15 +16,14 @@
 
 package com.couchbase.analytics.client.java;
 
+import com.couchbase.analytics.client.java.internal.RawQueryMetadata;
 import com.couchbase.jsonskiff.JsonStreamParser;
-import org.jspecify.annotations.Nullable;
 
 import java.io.Closeable;
 import java.io.InputStream;
 import java.util.List;
 import java.util.function.Consumer;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
 class AnalyticsResponseParser implements Closeable {
@@ -38,26 +37,19 @@ class AnalyticsResponseParser implements Closeable {
     this.parser = newStreamParser();
   }
 
-  @Nullable String requestId;
-  byte @Nullable [] signature;
-  byte @Nullable [] plans;
-  byte @Nullable [] metrics;
-  byte @Nullable [] errors;
-  byte @Nullable [] warnings;
-  @Nullable String clientContextId;
-  @Nullable String status;
+  final RawQueryMetadata result = new RawQueryMetadata();
 
   private JsonStreamParser newStreamParser() {
     return JsonStreamParser.builder()
-      .doOnValue("/requestID", v -> requestId = v.readString())
-      .doOnValue("/signature", v -> signature = v.bytes())
-      .doOnValue("/plans", v -> plans = v.bytes())
-      .doOnValue("/clientContextID", v -> clientContextId = v.readString())
+      .doOnValue("/requestID", v -> result.requestId = v.readString())
+      .doOnValue("/signature", v -> result.signature = v.bytes())
+      .doOnValue("/plans", v -> result.plans = v.bytes())
+      .doOnValue("/clientContextID", v -> result.clientContextId = v.readString())
       .doOnValue("/results/-", v -> rowConsumer.accept(v.bytes()))
-      .doOnValue("/status", v -> status = v.readString())
-      .doOnValue("/metrics", v -> metrics = v.bytes())
-      .doOnValue("/warnings", v -> warnings = v.bytes())
-      .doOnValue("/errors", v -> fail(errors = v.bytes()))
+      .doOnValue("/status", v -> result.status = v.readString())
+      .doOnValue("/metrics", v -> result.metrics = v.bytes())
+      .doOnValue("/warnings", v -> result.warnings = v.bytes())
+      .doOnValue("/errors", v -> fail(result.errors = v.bytes()))
       .build();
   }
 
@@ -96,21 +88,8 @@ class AnalyticsResponseParser implements Closeable {
     parser.close();
   }
 
-  static @Nullable String newString(byte @Nullable [] array) {
-    return array == null ? null : new String(array, UTF_8);
-  }
-
   @Override
   public String toString() {
-    return "AnalyticsResponseParser{" +
-      "requestId='" + requestId + '\'' +
-      ", signature=" + newString(signature) +
-      ", plans=" + newString(plans) +
-      ", metrics=" + newString(metrics) +
-      ", errors=" + newString(errors) +
-      ", warnings=" + newString(warnings) +
-      ", clientContextId='" + clientContextId + '\'' +
-      ", status='" + status + '\'' +
-      '}';
+    return result.toString();
   }
 }
