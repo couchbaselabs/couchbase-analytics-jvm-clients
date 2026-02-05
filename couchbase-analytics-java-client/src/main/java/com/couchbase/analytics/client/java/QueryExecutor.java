@@ -17,6 +17,7 @@
 package com.couchbase.analytics.client.java;
 
 import com.couchbase.analytics.client.java.codec.Deserializer;
+import com.couchbase.analytics.client.java.internal.RawQueryMetadata;
 import com.couchbase.analytics.client.java.internal.utils.UserAgentBuilder;
 import com.couchbase.analytics.client.java.internal.utils.VersionAndGitHash;
 import com.couchbase.analytics.client.java.internal.utils.json.Mapper;
@@ -78,8 +79,7 @@ class QueryExecutor {
     .build();
 
   private final AnalyticsOkHttpClient httpClient;
-  private final HttpUrl url;
-  private final Credential credential;
+  final HttpUrl url;
   private final Deserializer defaultDeserializer;
   private final ClusterOptions.Unmodifiable clusterOptions;
   private final boolean maybeCouchbaseInternalNonProd;
@@ -87,12 +87,10 @@ class QueryExecutor {
   public QueryExecutor(
     AnalyticsOkHttpClient httpClient,
     HttpUrl url,
-    Credential credential,
     ClusterOptions.Unmodifiable clusterOptions
   ) {
     this.httpClient = requireNonNull(httpClient);
     this.url = requireNonNull(url);
-    this.credential = requireNonNull(credential);
     this.clusterOptions = requireNonNull(clusterOptions);
 
     this.defaultDeserializer = requireNonNull(clusterOptions.deserializer());
@@ -101,8 +99,8 @@ class QueryExecutor {
 
   public QueryResult executeQuery(@Nullable QueryContext queryContext, String statement, Consumer<QueryOptions> options) {
     List<Row> rows = new ArrayList<>();
-    QueryMetadata metadata = executeStreamingQueryWithRetry(queryContext, statement, rows::add, options);
-    return new QueryResult(rows, metadata);
+    RawQueryMetadata raw = executeStreamingQueryWithRetry(queryContext, statement, rows::add, options);
+    return new QueryResult(rows, new QueryMetadata(raw));
   }
 
   /**
@@ -118,7 +116,7 @@ class QueryExecutor {
     }
   }
 
-  public QueryMetadata executeStreamingQueryWithRetry(
+  public RawQueryMetadata executeStreamingQueryWithRetry(
     @Nullable QueryContext queryContext,
     String statement,
     Consumer<Row> rowAction,
@@ -196,7 +194,7 @@ class QueryExecutor {
     }
   }
 
-  QueryMetadata executeStreamingQueryOnce(
+  RawQueryMetadata executeStreamingQueryOnce(
     @Nullable QueryContext queryContext,
     String statement,
     Consumer<Row> rowAction,
@@ -223,11 +221,46 @@ class QueryExecutor {
       .header("User-Agent", userAgent)
       .post(requestBody(query));
 
-    String authHeaderValue = credential.httpAuthorizationHeaderValue();
-    if (authHeaderValue != null) {
-      requestBuilder.header("Authorization", authHeaderValue);
-    }
+    return executeStreamingQueryOnce(
+      requestBuilder,
+      timeout,
+      rowAction,
+      deserializer
+    );
+  }
 
+  Response executeRaw(
+    Request request,
+    Duration timeout
+  ) {
+    OkHttpClient client = httpClient.clientWithTimeout(timeout);
+    Call call = client.newCall(request);
+
+    try {
+      return AnalyticsOkHttpClient.executeInterruptibly(call);
+
+    } catch (SSLHandshakeException e) {
+      throw new AnalyticsException(tlsHandshakeErrorMessage(e), e);
+
+    } catch (IOException e) {
+      if (Thread.currentThread().isInterrupted()) {
+        throw propagateInterruption(e);
+      }
+
+      if (hasCause(e, SocketTimeoutException.class) || hasCause(e, InterruptedIOException.class)) {
+        throw new AnalyticsTimeoutException(e);
+      }
+
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  RawQueryMetadata executeStreamingQueryOnce(
+    Request.Builder requestBuilder,
+    Duration timeout,
+    Consumer<Row> rowAction,
+    Deserializer deserializer
+  ) {
     Request request = requestBuilder.build();
 
     OkHttpClient client = httpClient.clientWithTimeout(timeout);
@@ -276,14 +309,14 @@ class QueryExecutor {
         throw new AnalyticsException("Query response parsing failed due to " + e + " ; " + httpStatusMessage, e);
       }
 
-      if (parser.requestId == null) {
+      if (parser.result.requestId == null) {
         maybeThrowSyntheticServiceNotAvailable(response);
 
         // Response wasn't a JSON Object with a "requestID" field :-(
         throw new AnalyticsException("HTTP body did not matched expected query response format. " + httpStatusMessage);
       }
 
-      return new QueryMetadata(parser);
+      return parser.result;
 
     } catch (SSLHandshakeException e) {
       throw new AnalyticsException(tlsHandshakeErrorMessage(e), e);

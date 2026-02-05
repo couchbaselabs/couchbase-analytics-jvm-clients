@@ -17,6 +17,7 @@
 package com.couchbase.analytics.client.java;
 
 import com.couchbase.analytics.client.java.internal.Certificates;
+import com.couchbase.analytics.client.java.internal.RawQueryMetadata;
 import com.couchbase.analytics.client.java.internal.utils.BuilderPropertySetter;
 import okhttp3.HttpUrl;
 import org.slf4j.Logger;
@@ -94,7 +95,6 @@ public class Cluster implements Queryable, Closeable {
         credential
       ),
       url,
-      credential,
       options
     );
   }
@@ -267,7 +267,8 @@ public class Cluster implements Queryable, Closeable {
   @Override
   public QueryMetadata executeStreamingQuery(String statement, Consumer<Row> rowAction, Consumer<QueryOptions> options) {
     try {
-      return queryExecutor.executeStreamingQueryWithRetry(null, statement, rowAction, options);
+      RawQueryMetadata rawMetadata = queryExecutor.executeStreamingQueryWithRetry(null, statement, rowAction, options);
+      return new QueryMetadata(rawMetadata);
 
     } catch (QueryException e) {
       // Expected, so omit uninteresting noise from the JSON stream parser.

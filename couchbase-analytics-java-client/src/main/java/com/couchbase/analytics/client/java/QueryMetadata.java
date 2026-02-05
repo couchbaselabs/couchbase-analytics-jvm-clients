@@ -16,6 +16,7 @@
 
 package com.couchbase.analytics.client.java;
 
+import com.couchbase.analytics.client.java.internal.RawQueryMetadata;
 import com.couchbase.analytics.client.java.internal.ThreadSafe;
 import com.couchbase.analytics.client.java.internal.utils.json.Mapper;
 import org.jspecify.annotations.Nullable;
@@ -37,10 +38,10 @@ public final class QueryMetadata {
   private final byte @Nullable [] metrics;
   private final byte @Nullable [] warnings;
 
-  QueryMetadata(AnalyticsResponseParser response) {
-    this.requestId = defaultIfNull(response.requestId, "?");
-    this.metrics = response.metrics;
-    this.warnings = response.warnings;
+  QueryMetadata(RawQueryMetadata raw) {
+    this.requestId = defaultIfNull(raw.requestId, "?");
+    this.metrics = raw.metrics;
+    this.warnings = raw.warnings;
   }
 
   /**

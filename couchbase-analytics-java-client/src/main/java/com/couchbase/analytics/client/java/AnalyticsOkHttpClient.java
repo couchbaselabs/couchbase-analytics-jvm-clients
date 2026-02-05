@@ -28,6 +28,7 @@ import okhttp3.EventListener;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Protocol;
+import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.TlsVersion;
 import okhttp3.tls.HandshakeCertificates;
@@ -138,6 +139,20 @@ class AnalyticsOkHttpClient implements Closeable {
     } else {
       clientBuilder.sslSocketFactory(handshakeCertificates.sslSocketFactory(), handshakeCertificates.trustManager());
     }
+
+    clientBuilder.addInterceptor(chain -> {
+      Request request = chain.request();
+
+      // get the value every time in case the credential is dynamic (deprecated)
+      String authorizationHeaderValue = credential.httpAuthorizationHeaderValue();
+      if (authorizationHeaderValue != null) {
+        request = request.newBuilder()
+          .header("Authorization", authorizationHeaderValue)
+          .build();
+      }
+
+      return chain.proceed(request);
+    });
 
     this.client = clientBuilder.build();
 
