@@ -75,6 +75,23 @@ public abstract class Credential {
     }
   }
 
+  private static class Jwt extends Credential {
+    private final String authHeaderValue;
+
+    Jwt(String jwt) {
+      this.authHeaderValue = "Bearer " + jwt.trim();
+    }
+
+    @Override
+    String httpAuthorizationHeaderValue() {
+      return authHeaderValue;
+    }
+
+    @Override
+    void addHeldCertificate(HandshakeCertificates.Builder builder) {
+    }
+  }
+
   private static class ClientCertificate extends Credential {
     private final HeldCertificate heldCertificate;
     private final List<X509Certificate> intermediates;
@@ -118,6 +135,19 @@ public abstract class Credential {
    */
   public static Credential of(String username, String password) {
     return new UsernameAndPassword(username, password);
+  }
+
+  /**
+   * Returns a new instance that holds the given JSON Web Token (JWT).
+   * <p>
+   * Requires Enterprise Analytics 2.2 or later.
+   * <p>
+   * <b>NOTE:</b> This kind of credential often has a relatively short validity period.
+   * To prevent authentication failures caused by stale credentials,
+   * periodically pass a fresh credential to {@link Cluster#credential(Credential)}.
+   */
+  public static Credential ofJwt(String jwt) {
+    return new Jwt(jwt);
   }
 
   /**
