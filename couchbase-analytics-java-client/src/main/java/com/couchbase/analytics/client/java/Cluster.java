@@ -19,6 +19,8 @@ package com.couchbase.analytics.client.java;
 import com.couchbase.analytics.client.java.internal.Certificates;
 import com.couchbase.analytics.client.java.internal.RawQueryMetadata;
 import com.couchbase.analytics.client.java.internal.utils.BuilderPropertySetter;
+import com.couchbase.analytics.client.java.internal.utils.UserAgentBuilder;
+import com.couchbase.analytics.client.java.internal.utils.VersionAndGitHash;
 import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 import static com.couchbase.analytics.client.java.internal.utils.lang.CbCollections.listOf;
@@ -46,6 +49,16 @@ public class Cluster implements Queryable, Closeable {
   private final String connectionString;
   private final ClusterOptions.Unmodifiable options;
   private final HttpUrl url;
+
+  private final String userAgent = new UserAgentBuilder()
+    .append(
+      "java-analytics",
+      VersionAndGitHash.from(Cluster.class).version(),
+      "id=" + UUID.randomUUID()
+    )
+    .appendJava()
+    .appendOs()
+    .build();
 
   private static HttpUrl parseAnalyticsUrl(String s) {
     HttpUrl url = HttpUrl.get(s);
@@ -83,7 +96,7 @@ public class Cluster implements Queryable, Closeable {
     warnIfConfigurationIsInsecure(url, options);
   }
 
-  private static QueryExecutor newQueryExecutor(
+  private QueryExecutor newQueryExecutor(
     ClusterOptions.Unmodifiable options,
     HttpUrl url,
     Credential credential
@@ -95,7 +108,8 @@ public class Cluster implements Queryable, Closeable {
         credential
       ),
       url,
-      options
+      options,
+      userAgent
     );
   }
 

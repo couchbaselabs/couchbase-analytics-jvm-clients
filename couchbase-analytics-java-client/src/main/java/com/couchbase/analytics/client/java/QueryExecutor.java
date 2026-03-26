@@ -18,8 +18,6 @@ package com.couchbase.analytics.client.java;
 
 import com.couchbase.analytics.client.java.codec.Deserializer;
 import com.couchbase.analytics.client.java.internal.RawQueryMetadata;
-import com.couchbase.analytics.client.java.internal.utils.UserAgentBuilder;
-import com.couchbase.analytics.client.java.internal.utils.VersionAndGitHash;
 import com.couchbase.analytics.client.java.internal.utils.json.Mapper;
 import com.couchbase.analytics.client.java.internal.utils.time.Deadline;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -47,7 +45,6 @@ import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.function.Consumer;
 
@@ -66,18 +63,7 @@ class QueryExecutor {
     Duration.ofMinutes(1)
   );
 
-  private final VersionAndGitHash versionAndGitHash = VersionAndGitHash.from(getClass());
-
-  private final String userAgent = new UserAgentBuilder()
-    .append(
-      "java-analytics",
-      versionAndGitHash.version(),
-      "id=" + UUID.randomUUID()
-    )
-    .appendJava()
-    .appendOs()
-    .build();
-
+  private final String userAgent;
   private final AnalyticsOkHttpClient httpClient;
   final HttpUrl url;
   private final Deserializer defaultDeserializer;
@@ -87,7 +73,8 @@ class QueryExecutor {
   public QueryExecutor(
     AnalyticsOkHttpClient httpClient,
     HttpUrl url,
-    ClusterOptions.Unmodifiable clusterOptions
+    ClusterOptions.Unmodifiable clusterOptions,
+    String userAgent
   ) {
     this.httpClient = requireNonNull(httpClient);
     this.url = requireNonNull(url);
@@ -95,6 +82,7 @@ class QueryExecutor {
 
     this.defaultDeserializer = requireNonNull(clusterOptions.deserializer());
     this.maybeCouchbaseInternalNonProd = url.host().endsWith(".nonprod-project-avengers.com");
+    this.userAgent = requireNonNull(userAgent);
   }
 
   public QueryResult executeQuery(@Nullable QueryContext queryContext, String statement, Consumer<QueryOptions> options) {
