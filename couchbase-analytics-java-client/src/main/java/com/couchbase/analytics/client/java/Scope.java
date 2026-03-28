@@ -54,6 +54,19 @@ public final class Scope implements Queryable {
   }
 
   @Override
+  public QueryHandle startQuery(
+    String statement,
+    Consumer<StartQueryOptions> options
+  ) {
+    return cluster.queryExecutor.startQuery(
+      () -> this.cluster.queryExecutor,
+      queryContext,
+      statement,
+      options
+    );
+  }
+
+  @Override
   public QueryResult executeQuery(String statement, Consumer<QueryOptions> options) {
     return cluster.queryExecutor.executeQuery(queryContext, statement, options);
   }
@@ -64,7 +77,15 @@ public final class Scope implements Queryable {
     Consumer<Row> rowAction,
     Consumer<QueryOptions> options
   ) {
-    RawQueryMetadata raw = cluster.queryExecutor.executeStreamingQueryWithRetry(queryContext, statement, rowAction, options);
+    QueryOptions.Unmodifiable opts = QueryOptions.configure(cluster.queryExecutor.clusterOptions(), options);
+    RawQueryMetadata raw = cluster.queryExecutor.executeStreamingQueryWithRetry(
+      queryContext,
+      QueryExecutor.Mode.SYNC,
+      statement,
+      rowAction,
+      opts,
+      opts.deserializer()
+    );
     return new QueryMetadata(raw);
   }
 

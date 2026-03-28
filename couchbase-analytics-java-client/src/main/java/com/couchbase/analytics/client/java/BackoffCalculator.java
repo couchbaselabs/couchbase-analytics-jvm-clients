@@ -51,7 +51,9 @@ class BackoffCalculator {
   }
 
   Duration delayForAttempt(long attempt) {
-    final long millis = attempt < delayMillisLookupTable.size() ? delayMillisLookupTable.get((int) attempt) : maxDelayMillis;
+    final long millis = attempt >= 0 && attempt < delayMillisLookupTable.size()
+      ? delayMillisLookupTable.get((int) attempt)
+      : maxDelayMillis;
     long jitteredMillis = (long) (millis * ThreadLocalRandom.current().nextDouble());
     return Duration.ofMillis(jitteredMillis);
   }

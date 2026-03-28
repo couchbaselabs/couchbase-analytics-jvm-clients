@@ -17,13 +17,16 @@
 package com.couchbase.analytics.client.java;
 
 import com.couchbase.analytics.client.java.codec.Deserializer;
+import com.couchbase.analytics.client.java.internal.InternalJacksonSerDes;
 import com.couchbase.analytics.client.java.internal.RawQueryMetadata;
 import com.couchbase.analytics.client.java.internal.utils.json.Mapper;
+import com.couchbase.analytics.client.java.internal.utils.lang.HeadInterceptInputStream;
 import com.couchbase.analytics.client.java.internal.utils.time.Deadline;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import okhttp3.Call;
+import okhttp3.FormBody;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -38,7 +41,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLHandshakeException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.io.UncheckedIOException;
 import java.net.SocketTimeoutException;
@@ -47,16 +49,25 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
-import static com.couchbase.analytics.client.java.internal.utils.lang.CbObjects.defaultIfNull;
+import static com.couchbase.analytics.client.java.internal.utils.lang.CbStrings.isNullOrEmpty;
+import static com.couchbase.analytics.client.java.internal.utils.lang.CbStrings.removeStart;
 import static com.couchbase.analytics.client.java.internal.utils.lang.CbThrowables.hasCause;
 import static com.couchbase.analytics.client.java.internal.utils.time.GolangDuration.encodeDurationToMs;
 import static java.util.Collections.emptyMap;
+import static java.util.Objects.isNull;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 class QueryExecutor {
   private static final Logger log = LoggerFactory.getLogger(QueryExecutor.class);
+
+  enum Mode {
+    SYNC, // executeQuery
+    ASYNC, // startQuery
+  }
 
   private static final BackoffCalculator backoff = new BackoffCalculator(
     Duration.ofMillis(100),
@@ -65,30 +76,173 @@ class QueryExecutor {
 
   private final String userAgent;
   private final AnalyticsOkHttpClient httpClient;
-  final HttpUrl url;
-  private final Deserializer defaultDeserializer;
+  final HttpUrl baseUrl;
+  final HttpUrl apiV1RequestUrl;
   private final ClusterOptions.Unmodifiable clusterOptions;
   private final boolean maybeCouchbaseInternalNonProd;
 
   public QueryExecutor(
     AnalyticsOkHttpClient httpClient,
-    HttpUrl url,
+    HttpUrl baseUrl,
     ClusterOptions.Unmodifiable clusterOptions,
     String userAgent
   ) {
     this.httpClient = requireNonNull(httpClient);
-    this.url = requireNonNull(url);
+    this.baseUrl = requireNonNull(baseUrl);
+    this.apiV1RequestUrl = baseUrl.newBuilder()
+      .addPathSegment("api")
+      .addPathSegment("v1")
+      .addPathSegment("request")
+      .build();
+
     this.clusterOptions = requireNonNull(clusterOptions);
 
-    this.defaultDeserializer = requireNonNull(clusterOptions.deserializer());
-    this.maybeCouchbaseInternalNonProd = url.host().endsWith(".nonprod-project-avengers.com");
+    this.maybeCouchbaseInternalNonProd = baseUrl.host().endsWith(".nonprod-project-avengers.com");
     this.userAgent = requireNonNull(userAgent);
   }
 
-  public QueryResult executeQuery(@Nullable QueryContext queryContext, String statement, Consumer<QueryOptions> options) {
+  public QueryResult executeQuery(
+    @Nullable QueryContext queryContext,
+    String statement,
+    Consumer<QueryOptions> options
+  ) {
+    QueryOptions.Unmodifiable opts = QueryOptions.configure(clusterOptions, options);
+
     List<Row> rows = new ArrayList<>();
-    RawQueryMetadata raw = executeStreamingQueryWithRetry(queryContext, statement, rows::add, options);
+    RawQueryMetadata raw = executeStreamingQueryWithRetry(
+      queryContext,
+      Mode.SYNC,
+      statement,
+      rows::add,
+      opts,
+      opts.deserializer()
+    );
     return new QueryResult(rows, new QueryMetadata(raw));
+  }
+
+  private static final Consumer<Row> expectNoRows = row -> {
+    throw new AnalyticsException("Did not expect to receive a row when starting async query");
+  };
+
+  ClusterOptions.Unmodifiable clusterOptions() {
+    return clusterOptions;
+  }
+
+  Request.Builder requestForPath(String encodedPath) {
+    encodedPath = removeStart(encodedPath, "/"); // prevent empty path segment at start
+    HttpUrl url = baseUrl.newBuilder()
+      .addEncodedPathSegments(encodedPath)
+      .build();
+
+    return new Request.Builder()
+      .url(url);
+  }
+
+  public QueryHandle startQuery(
+    Supplier<QueryExecutor> executorSupplier,
+    @Nullable QueryContext queryContext,
+    String statement,
+    Consumer<StartQueryOptions> options
+  ) {
+    StartQueryOptions.Unmodifiable opts = StartQueryOptions.configure(clusterOptions, options);
+
+    RawQueryMetadata raw = executeStreamingQueryWithRetry(
+      queryContext,
+      Mode.ASYNC,
+      statement,
+      expectNoRows,
+      opts,
+      InternalJacksonSerDes.INSTANCE // dummy
+    );
+    if (raw.handle == null) {
+      throw new AnalyticsException("Server response was missing 'handle' field for query handle.");
+    }
+    if (raw.requestId == null) {
+      throw new AnalyticsException("Server response was missing 'requestID' field for query handle.");
+    }
+    return new QueryHandle(executorSupplier, raw.requestId, raw.handle);
+  }
+
+  public void discard(String path) {
+    Request.Builder requestBuilder = requestForPath(path)
+      .delete();
+
+    try {
+      executeStreamingQueryWithRetry(
+        requestBuilder,
+        rowOptionsForSimpleHandleRequest(),
+        expectNoRows
+      );
+    } catch (QueryNotFoundException ignore) {
+      log.debug("Discard failed for non-existent query {}", path);
+    }
+  }
+
+  private RowOptions.Unmodifiable rowOptionsForSimpleHandleRequest() {
+    RowOptions options = new RowOptions()
+      .timeout(clusterOptions.timeout().handleRequestTimeout());
+    return options.build(clusterOptions);
+  }
+
+  public void cancel(String requestId) {
+    HttpUrl url = baseUrl.newBuilder()
+      .addPathSegment("api")
+      .addPathSegment("v1")
+      .addPathSegment("active_requests")
+      .build();
+
+    RequestBody body = new FormBody.Builder()
+      .add("request_id", requestId)
+      .build();
+
+    Request.Builder requestBuilder = new Request.Builder()
+      .url(url)
+      .delete(body);
+
+    try {
+      executeStreamingQueryWithRetry(
+        requestBuilder,
+        rowOptionsForSimpleHandleRequest(),
+        expectNoRows
+      );
+    } catch (QueryNotFoundException ignore) {
+      log.debug("Cancel failed for non-existent query {}", requestId);
+    }
+  }
+
+  public StatusResponse getStatus(QueryHandle queryHandle, Duration requestTimeout) {
+    Request.Builder requestBuilder = requestForPath(queryHandle.handle);
+
+    try (Response response = executeRaw(
+      requestBuilder.build(),
+      requestTimeout
+    )) {
+      if (response.code() == 404) {
+        throw QueryNotFoundException.forHandle(queryHandle);
+      }
+
+      try (ResponseBody responseBody = response.body()) {
+        if (!response.isSuccessful()) {
+          String body = responseBody == null ? "" : responseBody.string();
+          if (body.isEmpty()) {
+            body = "<empty>";
+          }
+          throw new AnalyticsException("Query handle poll failed. Server said: " + response.code() + " " + response.message() + " ; body=" + body);
+        }
+
+        if (isNull(responseBody)) {
+          throw new AnalyticsException("Query status response body was null.");
+        }
+
+        String body = responseBody.string();
+        return Mapper.readValue(body, StatusResponse.class);
+
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    } catch (UncheckedIOException e) {
+      throw new AnalyticsException("Failed to get query handle status for handle: " + queryHandle.toSerialized(), e);
+    }
   }
 
   /**
@@ -104,28 +258,17 @@ class QueryExecutor {
     }
   }
 
-  public RawQueryMetadata executeStreamingQueryWithRetry(
-    @Nullable QueryContext queryContext,
-    String statement,
-    Consumer<Row> rowAction,
-    Consumer<QueryOptions> options
+  <T> T doWithRetry(
+    Duration timeout,
+    int maxRetries,
+    Function<Duration, T> action // first param is time remaining
   ) {
-    QueryException prevException = null;
-
-    QueryOptions queryOptions = new QueryOptions();
-    options.accept(queryOptions);
-    QueryOptions.Unmodifiable opts = queryOptions.build();
-
-    int maxRetries = defaultIfNull(opts.maxRetries(), clusterOptions.maxRetries());
-    Deserializer deserializer = defaultIfNull(opts.deserializer(), defaultDeserializer);
-    Duration timeout = defaultIfNull(opts.timeout(), clusterOptions.timeout().queryTimeout());
-
     Deadline retryDeadline = Deadline.of(timeout);
-
+    QueryException prevException = null;
     try {
       for (int attempt = 0; attempt >= 0 && attempt <= maxRetries; attempt++) {
         try {
-          return executeStreamingQueryOnce(queryContext, statement, rowAction, opts, deserializer, timeout);
+          return action.apply(timeout);
 
         } catch (QueryException e) {
           if (!e.errorCodeAndMessage.retry()) {
@@ -136,10 +279,9 @@ class QueryExecutor {
 
           Duration backoffDelay = backoff.delayForAttempt(attempt);
           if (!retryDeadline.hasRemaining(backoffDelay)) {
-            AnalyticsTimeoutException timeoutException = new AnalyticsTimeoutException(
+            throw new AnalyticsTimeoutException(
               "Declaring timeout early because sleeping for backoff delay would exceed timeout deadline."
             );
-            throw timeoutException;
           }
 
           log.debug("Query execution failed with error code {}; will retry in {}", e.errorCodeAndMessage, backoffDelay);
@@ -165,6 +307,57 @@ class QueryExecutor {
     throw prevException;
   }
 
+  public RawQueryMetadata executeStreamingQueryWithRetry(
+    Request.Builder requestBuilder,
+    RowOptions.Unmodifiable options,
+    Consumer<Row> rowAction
+  ) {
+    return doWithRetry(
+      options.timeout(),
+      options.maxRetries(),
+      timeRemaining -> executeStreamingQueryOnce(
+        requestBuilder,
+        timeRemaining,
+        rowAction,
+        options.deserializer()
+      )
+    );
+  }
+
+  public RawQueryMetadata executeStreamingQueryWithRetry(
+    @Nullable QueryContext queryContext,
+    Mode mode,
+    String statement,
+    Consumer<Row> rowAction,
+    CommonQueryOptions.Unmodifiable opts,
+    Deserializer deserializer
+  ) {
+    Duration queryTimeout = opts.timeout(); // server-side timeout
+
+    // The call timeout is shorter in async mode (startQuery) because we don't need to wait for query execution to complete.
+    Duration callTimeout = mode == Mode.ASYNC
+      ? clusterOptions.timeout().handleRequestTimeout()
+      : queryTimeout;
+
+    return doWithRetry(
+      callTimeout,
+      opts.maxRetries(),
+      timeRemaining -> executeStreamingQueryOnce(
+        queryContext,
+        mode,
+        statement,
+        rowAction,
+        opts,
+        deserializer,
+        // For async queries, there is no relationship between the call timeout and the
+        // server-side query timeout, so pass the full query timeout on every attempt.
+        // For synchronous queries on the other hand, the retry backoff time eats into the total query time.
+        mode == Mode.ASYNC ? queryTimeout : timeRemaining,
+        timeRemaining
+      )
+    );
+  }
+
   private static RuntimeException newRuntimeExceptionWithoutStackTrace(String message) {
     return new RuntimeException(message) {
       @Override
@@ -174,7 +367,7 @@ class QueryExecutor {
     };
   }
 
-  private static void sleep(Duration d) {
+  static void sleep(Duration d) {
     try {
       MILLISECONDS.sleep(d.toMillis());
     } catch (InterruptedException e) {
@@ -184,19 +377,33 @@ class QueryExecutor {
 
   RawQueryMetadata executeStreamingQueryOnce(
     @Nullable QueryContext queryContext,
+    Mode mode,
     String statement,
     Consumer<Row> rowAction,
-    QueryOptions.Unmodifiable opts,
+    CommonQueryOptions.Unmodifiable opts,
     Deserializer deserializer,
-    Duration timeout
+    Duration serverTimeout,
+    Duration callTimeout
   ) {
     requireNonNull(statement, "statement cannot be null");
 
-    Duration serverTimeout = timeout.plus(Duration.ofSeconds(5));
+    // Tip the scales in favor of the user getting a client-enforced timeout
+    // (surfaced as AnalyticsTimeoutException) instead of a server-enforced timeout
+    // (surfaced as QueryTimeout).
+    //
+    // This was arguably a mistake; it might be better to tip the scales the other way
+    // so the user is more likely to get an unambiguous signal when the query times out
+    // on the server, as opposed to the current ambiguous `AnalyticsTimeoutException`
+    // which could also indicate a network issue between the client and server.
+    serverTimeout = serverTimeout.plus(Duration.ofSeconds(5));
 
     ObjectNode query = JsonNodeFactory.instance.objectNode()
       .put("statement", statement)
       .put("timeout", encodeDurationToMs(serverTimeout));
+
+    if (mode == Mode.ASYNC) {
+      query.put("mode", "async");
+    }
 
     if (queryContext != null) {
       query.put("query_context", queryContext.format());
@@ -205,13 +412,12 @@ class QueryExecutor {
     opts.injectParams(query);
 
     Request.Builder requestBuilder = new Request.Builder()
-      .url(url)
-      .header("User-Agent", userAgent)
+      .url(apiV1RequestUrl)
       .post(requestBody(query));
 
     return executeStreamingQueryOnce(
       requestBuilder,
-      timeout,
+      callTimeout,
       rowAction,
       deserializer
     );
@@ -245,13 +451,15 @@ class QueryExecutor {
 
   RawQueryMetadata executeStreamingQueryOnce(
     Request.Builder requestBuilder,
-    Duration timeout,
+    Duration callTimeout,
     Consumer<Row> rowAction,
     Deserializer deserializer
   ) {
-    Request request = requestBuilder.build();
+    Request request = requestBuilder
+      .header("User-Agent", userAgent)
+      .build();
 
-    OkHttpClient client = httpClient.clientWithTimeout(timeout);
+    OkHttpClient client = httpClient.clientWithTimeout(callTimeout);
     Call call = client.newCall(request);
 
     boolean allowConnectionReuse = false;
@@ -275,11 +483,13 @@ class QueryExecutor {
       }
 
       if (body == null) {
-        maybeThrowSyntheticServiceNotAvailable(response);
+        maybeThrowSyntheticServiceNotAvailable(response, null);
         throw new AnalyticsException("HTTP response had no body; this is unexpected! " + httpStatusMessage);
       }
 
-      try (InputStream is = body.byteStream()) {
+      HeadInterceptInputStream bodyInterceptor; // cache the start of the response body so we can access it later
+      try (HeadInterceptInputStream is = new HeadInterceptInputStream(body.byteStream(), 4 * 1024)) {
+        bodyInterceptor = is;
         parser.feed(is);
         parser.endOfInput();
         allowConnectionReuse = true; // success!
@@ -297,11 +507,24 @@ class QueryExecutor {
         throw new AnalyticsException("Query response parsing failed due to " + e + " ; " + httpStatusMessage, e);
       }
 
-      if (parser.result.requestId == null) {
-        maybeThrowSyntheticServiceNotAvailable(response);
+      if (request.method().equals("DELETE")) {
+        if (response.code() == 404) {
+          throw new QueryNotFoundException(httpStatusMessage);
+        }
+        if (!response.isSuccessful()) {
+          throw new AnalyticsException("DELETE was not successful. " + httpStatusMessage);
+        }
 
-        // Response wasn't a JSON Object with a "requestID" field :-(
-        throw new AnalyticsException("HTTP body did not matched expected query response format. " + httpStatusMessage);
+      } else if (parser.result.requestId == null && parser.result.createdAt == null) {
+        String head = bodyInterceptor.getHeadAsString();
+        maybeThrowSyntheticServiceNotAvailable(response, head);
+
+        if (response.code() == 404) {
+          throw new QueryNotFoundException("No query found. Result may have expired or been discarded.");
+        }
+
+        // Response wasn't a JSON Object with a "requestID" or "createdAt" field :-(
+        throw new AnalyticsException("HTTP body did not matched expected query response format. " + httpStatusMessage + " ; response body = " + head);
       }
 
       return parser.result;
@@ -340,10 +563,11 @@ class QueryExecutor {
    * whether the error came from a load balancer or the analytics server.
    * </ul>
    */
-  private static void maybeThrowSyntheticServiceNotAvailable(Response response) {
+  private static void maybeThrowSyntheticServiceNotAvailable(Response response, @Nullable String head) {
     if (response.code() == 503) {
       int analyticsServiceNotAvailable = 23000;
       String message = "Got HTTP status " + statusLine(response) + " -- but there was no analytics response body. This might indicate the HTTP response came from a proxy or load balancer.";
+      message += " Response body = " + (isNullOrEmpty(head) ? "<empty>" : head);
       boolean retriable = true;
       throw new QueryException(new ErrorCodeAndMessage(analyticsServiceNotAvailable, message, retriable, emptyMap()));
     }

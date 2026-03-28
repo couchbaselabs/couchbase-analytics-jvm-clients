@@ -20,9 +20,12 @@ import com.couchbase.analytics.client.java.internal.ThreadSafe;
 import com.couchbase.analytics.client.java.internal.utils.json.Mapper;
 import com.couchbase.analytics.client.java.internal.utils.time.GolangDuration;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.time.Duration;
 import java.util.Optional;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Holds the metrics as returned from an analytics response.
@@ -48,6 +51,11 @@ public final class QueryMetrics {
     }
   }
 
+  QueryMetrics(final ObjectNode raw) {
+      this.rootNode = requireNonNull(raw);
+  }
+
+
   /**
    * @return The total time taken for the request that is the time from when the
    * request was received until the results were returned, in a human-readable
@@ -63,6 +71,13 @@ public final class QueryMetrics {
    */
   public Duration executionTime() {
     return decode(String.class, "executionTime").map(GolangDuration::parseDuration).orElse(Duration.ZERO);
+  }
+
+  /**
+   * Returns the length of time this query was enqueued before execution started.
+   */
+  public Duration queueWaitTime() {
+    return decode(String.class, "queueWaitTime").map(GolangDuration::parseDuration).orElse(Duration.ZERO);
   }
 
   /**

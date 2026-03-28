@@ -29,6 +29,8 @@ public class RawQueryMetadata {
   public byte @Nullable [] warnings;
   public @Nullable String clientContextId;
   public @Nullable String status;
+  public @Nullable String handle;
+  public @Nullable String createdAt;
 
   @Override public String toString() {
     return "RawQueryMetadata{" +
@@ -40,6 +42,7 @@ public class RawQueryMetadata {
       ", warnings=" + newString(warnings) +
       ", clientContextId='" + clientContextId + '\'' +
       ", status='" + status + '\'' +
+      ", handle='" + handle + '\'' +
       '}';
   }
 

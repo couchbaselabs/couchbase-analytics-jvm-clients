@@ -52,14 +52,9 @@ public class InternalUnsupportedHttpClient {
   private final HttpUrl baseUrl;
 
   public static InternalUnsupportedHttpClient from(Cluster cluster) {
-    HttpUrl url = cluster.queryExecutor.url;
     return new InternalUnsupportedHttpClient(
       cluster,
-      new HttpUrl.Builder()
-        .scheme(url.scheme())
-        .host(url.host())
-        .port(url.port())
-        .build()
+      cluster.queryExecutor.baseUrl
     );
   }
 
