@@ -19,6 +19,7 @@ package com.couchbase.analytics.client.java.internal.utils.json;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
@@ -43,6 +44,10 @@ public class Mapper {
     TypeReference<T> toValueType
   ) {
     return mapper.convertValue(fromValue, toValueType);
+  }
+
+  public static ObjectNode createObjectNode() {
+    return mapper.createObjectNode();
   }
 
   public static <T> T convertValue(

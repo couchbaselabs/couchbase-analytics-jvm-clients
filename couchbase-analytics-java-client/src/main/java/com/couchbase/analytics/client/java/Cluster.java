@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-import static com.couchbase.analytics.client.java.internal.utils.lang.CbCollections.listOf;
 import static com.couchbase.analytics.client.java.internal.utils.lang.CbCollections.setOf;
 import static java.util.Objects.requireNonNull;
 
@@ -46,9 +45,8 @@ public class Cluster implements Queryable, Closeable {
   volatile QueryExecutor queryExecutor;
   private volatile Credential credential;
 
-  private final String connectionString;
   private final ClusterOptions.Unmodifiable options;
-  private final HttpUrl url;
+  private final HttpUrl baseUrl;
 
   private final String userAgent = new UserAgentBuilder()
     .append(
@@ -60,40 +58,19 @@ public class Cluster implements Queryable, Closeable {
     .appendOs()
     .build();
 
-  private static HttpUrl parseAnalyticsUrl(String s) {
-    HttpUrl url = HttpUrl.get(s);
-    HttpUrl.Builder builder = url.newBuilder();
+  private Cluster(String baseUrl, Credential initalCredential, ClusterOptions.Unmodifiable options) {
+    this.baseUrl = requireNoUsernameOrPassword(HttpUrl.get(baseUrl));
+    this.options = requireNonNull(options);
+    this.credential = requireNonNull(initalCredential);
+    this.queryExecutor = newQueryExecutor(this.options, this.baseUrl, this.credential);
+    warnIfConfigurationIsInsecure(this.baseUrl, options);
+  }
 
+  private static HttpUrl requireNoUsernameOrPassword(HttpUrl url) {
     if (!url.username().isEmpty() || !url.password().isEmpty()) {
       throw new IllegalArgumentException("Connection string must not have username or password");
     }
-
-    if (url.pathSegments().equals(listOf(""))) {
-      builder
-//        .addPathSegment("analytics")
-//        .addPathSegment("service");
-        .addPathSegment("api")
-        .addPathSegment("v1")
-        .addPathSegment("request");
-
-    } else {
-      throw new IllegalArgumentException("Connection string must not have path components.");
-    }
-
-//    if (URI.create(s).getPort() == -1) {
-//      builder.port(url.isHttps() ? 18095 : 8095);
-//    }
-
-    return builder.build();
-  }
-
-  private Cluster(String connectionString, Credential initalCredential, ClusterOptions.Unmodifiable options) {
-    this.connectionString = requireNonNull(connectionString);
-    this.options = requireNonNull(options);
-    this.credential = requireNonNull(initalCredential);
-    this.url = parseAnalyticsUrl(connectionString);
-    this.queryExecutor = newQueryExecutor(this.options, this.url, this.credential);
-    warnIfConfigurationIsInsecure(url, options);
+    return url;
   }
 
   private QueryExecutor newQueryExecutor(
@@ -136,7 +113,7 @@ public class Cluster implements Queryable, Closeable {
   @Override
   public String toString() {
     return "Cluster{" +
-      "connectionString='" + connectionString + '\'' +
+      "baseUrl='" + baseUrl + '\'' +
       ", options=" + options +
       '}';
   }
@@ -247,7 +224,7 @@ public class Cluster implements Queryable, Closeable {
     }
 
     this.credential = requireNonNull(newCredential);
-    this.queryExecutor = newQueryExecutor(this.options, this.url, this.credential);
+    this.queryExecutor = newQueryExecutor(this.options, this.baseUrl, this.credential);
 
     // Don't close the old query executor, because we don't want to interfere with in-flight requests.
     // The OkHttp resources automatically release themselves after a period of inactivity.
@@ -267,21 +244,36 @@ public class Cluster implements Queryable, Closeable {
   }
 
   @Override
-  public QueryResult executeQuery(String statement, Consumer<QueryOptions> options) {
-    try {
-      return queryExecutor.executeQuery(null, statement, options);
-
-    } catch (QueryException e) {
-      // Expected, so omit uninteresting noise from the JSON stream parser.
-      e.fillInStackTrace();
-      throw e;
-    }
+  public QueryHandle startQuery(String statement, Consumer<StartQueryOptions> options) {
+    return queryExecutor.startQuery(
+      () -> this.queryExecutor,
+      null,
+      statement,
+      options
+    );
   }
 
   @Override
-  public QueryMetadata executeStreamingQuery(String statement, Consumer<Row> rowAction, Consumer<QueryOptions> options) {
+  public QueryResult executeQuery(String statement, Consumer<QueryOptions> options) {
+      return queryExecutor.executeQuery(null, statement, options);
+  }
+
+  @Override
+  public QueryMetadata executeStreamingQuery(
+    String statement,
+    Consumer<Row> rowAction,
+    Consumer<QueryOptions> options
+  ) {
     try {
-      RawQueryMetadata rawMetadata = queryExecutor.executeStreamingQueryWithRetry(null, statement, rowAction, options);
+      QueryOptions.Unmodifiable opts = QueryOptions.configure(this.options, options);
+      RawQueryMetadata rawMetadata = queryExecutor.executeStreamingQueryWithRetry(
+        null,
+        QueryExecutor.Mode.SYNC,
+        statement,
+        rowAction,
+        opts,
+        opts.deserializer()
+      );
       return new QueryMetadata(rawMetadata);
 
     } catch (QueryException e) {

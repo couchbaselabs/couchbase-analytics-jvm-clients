@@ -25,6 +25,45 @@ import java.util.function.Consumer;
 public interface Queryable {
 
   /**
+   * Starts executing a query statement using the specified options (query parameters, etc.),
+   * and returns a "handle" for fetching the results later.
+   * <p>
+   * Use this execution mode to ensure resilience against network interruptions
+   * during long-running queries.
+   *
+   * @param statement The Analytics SQL++ statement to execute.
+   * @param options A callback for specifying custom query options.
+   * @return A handle for fetching the result later.
+   * @throws QueryException if the server response indicates an error occurred
+   * @throws InvalidCredentialException if the server rejects the user credentials.
+   * @throws AnalyticsTimeoutException if the server does not respond before the timeout expires.
+   * @throws CancellationException if the calling thread is interrupted.
+   */
+  QueryHandle startQuery(
+    String statement,
+    Consumer<StartQueryOptions> options
+  );
+
+  /**
+   * Starts executing a query statement using default options,
+   * and returns a "handle" for fetching the results later.
+   * <p>
+   * Use this execution mode to ensure resilience against network interruptions
+   * during long-running queries.
+   *
+   * @param statement The Analytics SQL++ statement to execute.
+   * @return A handle for fetching the result later.
+   * @throws QueryException if the server response indicates an error occurred
+   * @throws InvalidCredentialException if the server rejects the user credentials.
+   * @throws AnalyticsTimeoutException if the server does not respond before the timeout expires.
+   * @throws CancellationException if the calling thread is interrupted.
+   */
+  default QueryHandle startQuery(String statement) {
+    return startQuery(statement, options -> {
+    });
+  }
+
+  /**
    * Executes a query statement using the specified options
    * (query parameters, etc.), and buffers all result rows in memory.
    * <p>

@@ -42,6 +42,7 @@ class AnalyticsResponseParser implements Closeable {
   private JsonStreamParser newStreamParser() {
     return JsonStreamParser.builder()
       .doOnValue("/requestID", v -> result.requestId = v.readString())
+      .doOnValue("/handle", v -> result.handle = v.readString())
       .doOnValue("/signature", v -> result.signature = v.bytes())
       .doOnValue("/plans", v -> result.plans = v.bytes())
       .doOnValue("/clientContextID", v -> result.clientContextId = v.readString())
@@ -50,6 +51,7 @@ class AnalyticsResponseParser implements Closeable {
       .doOnValue("/metrics", v -> result.metrics = v.bytes())
       .doOnValue("/warnings", v -> result.warnings = v.bytes())
       .doOnValue("/errors", v -> fail(result.errors = v.bytes()))
+      .doOnValue("/createdAt", v-> result.createdAt = v.readString())
       .build();
   }
 
@@ -66,22 +68,7 @@ class AnalyticsResponseParser implements Closeable {
   }
 
   private void fail(byte[] errors) {
-    List<ErrorCodeAndMessage> parsed = ErrorCodeAndMessage.fromJsonArray(errors);
-
-    ErrorCodeAndMessage primary = parsed.stream()
-      .filter(it -> !it.retry())
-      .findFirst()
-      .orElse(parsed.get(0));
-
-    QueryException e = new QueryException(primary);
-
-    for (ErrorCodeAndMessage error : parsed) {
-      if (error != primary) {
-        e.addSuppressed(new QueryException(error));
-      }
-    }
-
-    throw e;
+    throw QueryException.from(ErrorCodeAndMessage.fromJsonArray(errors));
   }
 
   public void close() {

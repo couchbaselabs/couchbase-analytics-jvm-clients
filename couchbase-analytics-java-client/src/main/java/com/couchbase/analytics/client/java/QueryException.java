@@ -18,6 +18,8 @@ package com.couchbase.analytics.client.java;
 
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
 import static com.couchbase.analytics.client.java.internal.utils.lang.CbStrings.isNullOrEmpty;
 import static java.util.Objects.requireNonNull;
 
@@ -37,6 +39,22 @@ public final class QueryException extends AnalyticsException {
   ) {
     super(errorCodeAndMessage + (isNullOrEmpty(ctx) ? "" : (" ; " + ctx)));
     this.errorCodeAndMessage = requireNonNull(errorCodeAndMessage);
+  }
+
+  static QueryException from(List<ErrorCodeAndMessage> errors) {
+    ErrorCodeAndMessage primary = errors.stream()
+      .filter(it -> !it.retry())
+      .findFirst()
+      .orElse(errors.get(0));
+
+    QueryException e = new QueryException(primary);
+
+    for (ErrorCodeAndMessage error : errors) {
+      if (error != primary) {
+        e.addSuppressed(new QueryException(error));
+      }
+    }
+    return e;
   }
 
   /**
