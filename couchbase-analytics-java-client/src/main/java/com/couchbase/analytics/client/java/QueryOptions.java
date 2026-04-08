@@ -205,7 +205,7 @@ public final class QueryOptions {
           JsonObject.from(namedParameters);
 
           namedParameters.forEach((key, value) -> {
-            JsonNode jsonValue = toRepackagedJacksonNode(InternalJacksonSerDes.INSTANCE, value);
+            JsonNode jsonValue = toJacksonNode(InternalJacksonSerDes.INSTANCE, value);
             if (key.charAt(0) != '$') {
               query.set('$' + key, jsonValue);
             } else {
@@ -226,7 +226,7 @@ public final class QueryOptions {
         JsonObject.from(raw);
 
         raw.forEach((key, value) -> {
-          JsonNode jsonValue = toRepackagedJacksonNode(InternalJacksonSerDes.INSTANCE, value);
+          JsonNode jsonValue = toJacksonNode(InternalJacksonSerDes.INSTANCE, value);
           query.set(key, jsonValue);
         });
       }
@@ -255,7 +255,7 @@ public final class QueryOptions {
      * This allows the user to specify query parameters as POJOs
      * and have them serialized using their chosen serializer.
      */
-    private static JsonNode toRepackagedJacksonNode(
+    private static JsonNode toJacksonNode(
       JsonSerializer serializer,
       Object value
     ) {
