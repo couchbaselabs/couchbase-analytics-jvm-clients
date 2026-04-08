@@ -28,10 +28,6 @@ import java.io.IOException;
 /**
  * For internal SDK use only.
  *
- * @implNote The serializer is backed by a repackaged version of Jackson,
- * but this is an implementation detail users should not depend on.
- * <p>
- * Be aware that this serializer does not recognize standard Jackson annotations.
  * @see JacksonDeserializer
  */
 public class InternalJacksonSerDes implements JsonSerializer, Deserializer {
