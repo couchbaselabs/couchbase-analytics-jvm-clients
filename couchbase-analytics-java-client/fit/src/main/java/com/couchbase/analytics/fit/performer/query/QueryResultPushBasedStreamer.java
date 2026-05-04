@@ -21,6 +21,7 @@ import com.couchbase.analytics.client.java.QueryOptions;
 import com.couchbase.analytics.client.java.Queryable;
 import com.couchbase.analytics.client.java.Row;
 import com.couchbase.analytics.fit.performer.content.ContentAsUtil;
+import com.couchbase.analytics.fit.performer.util.Durations;
 import com.couchbase.analytics.fit.performer.util.ErrorUtil;
 import fit.columnar.EmptyResultOrFailureResponse;
 import fit.columnar.ExecuteQueryRequest;
@@ -122,8 +123,8 @@ class PushBasedStreamer extends Thread {
     var metrics = sdk.metrics();
     return fit.columnar.QueryResultMetadataResponse.QueryMetadata.newBuilder()
       .setMetrics(fit.columnar.QueryResultMetadataResponse.QueryMetadata.Metrics.newBuilder()
-        .setElapsedTime(com.google.protobuf.Duration.newBuilder().setSeconds(metrics.elapsedTime().getSeconds()))
-        .setExecutionTime(com.google.protobuf.Duration.newBuilder().setSeconds(metrics.executionTime().getSeconds()))
+        .setElapsedTime(Durations.toFit(metrics.elapsedTime()))
+        .setExecutionTime(Durations.toFit(metrics.executionTime()))
         .setResultCount(metrics.resultCount())
         .setResultSize(metrics.resultSize())
         .setProcessedObjects(metrics.processedObjects())
