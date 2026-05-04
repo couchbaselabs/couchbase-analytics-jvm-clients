@@ -19,10 +19,10 @@ package com.couchbase.analytics.fit.performer.query;
 import com.couchbase.analytics.client.java.QueryOptions;
 import com.couchbase.analytics.client.java.ScanConsistency;
 import com.couchbase.analytics.fit.performer.util.CustomDeserializer;
+import com.couchbase.analytics.fit.performer.util.Durations;
 import com.couchbase.analytics.fit.performer.util.grpc.ProtobufConversions;
 import org.jspecify.annotations.Nullable;
 
-import java.time.Duration;
 import java.util.function.Consumer;
 
 import static com.couchbase.analytics.fit.performer.util.grpc.ProtobufConversions.protobufStructToMap;
@@ -58,7 +58,7 @@ public class QueryOptionsUtil {
         options.raw(protobufStructToMap(opts.getRaw()));
       }
       if (opts.hasTimeout()) {
-        options.timeout(Duration.ofSeconds(opts.getTimeout().getSeconds()));
+        options.timeout(Durations.toJava(opts.getTimeout()));
       }
       if (opts.hasDeserializer() && opts.getDeserializer().hasCustom()) {
         CustomDeserializer customDeserializer = new CustomDeserializer();

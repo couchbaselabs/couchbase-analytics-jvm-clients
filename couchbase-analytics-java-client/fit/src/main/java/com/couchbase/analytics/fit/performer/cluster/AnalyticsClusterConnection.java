@@ -19,8 +19,8 @@ package com.couchbase.analytics.fit.performer.cluster;
 
 import com.couchbase.analytics.client.java.Cluster;
 import com.couchbase.analytics.client.java.Credential;
+import com.couchbase.analytics.fit.performer.util.Durations;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -54,14 +54,14 @@ public class AnalyticsClusterConnection {
           if (options.hasTimeout()) {
             var timeoutOptions = options.getTimeout();
             if (timeoutOptions.hasConnectTimeout()) {
-              timeout.connectTimeout(Duration.ofSeconds(timeoutOptions.getConnectTimeout().getSeconds()));
+              timeout.connectTimeout(Durations.toJava(timeoutOptions.getConnectTimeout()));
             }
             if (timeoutOptions.hasDispatchTimeout()) {
               // todo - check with David if intentional
               throw new UnsupportedOperationException("dispatchTimeout not exposed in SDK");
             }
             if (timeoutOptions.hasQueryTimeout()) {
-              timeout.queryTimeout(Duration.ofSeconds(timeoutOptions.getQueryTimeout().getSeconds()));
+              timeout.queryTimeout(Durations.toJava(timeoutOptions.getQueryTimeout()));
             }
           }
         })
