@@ -41,8 +41,15 @@ message ClusterNewInstanceRequest {
       string password = 2;
     }
 
+    // Authenticates using a JSON Web Token (JWT).
+    // The SDK sets an "Authorization: Bearer <jwt>" header on every HTTP request.
+    message JwtAuth {
+      string jwt = 1;
+    }
+
     oneof type {
       UsernameAndPassword username_and_password = 1;
+      JwtAuth jwt_auth = 2;
     }
   }
 
@@ -80,4 +87,12 @@ message ClusterCloseRequest {
 // The performer should close all Columnar Cluster objects it has open.  In the RFC this is `cluster.close()`.
 message CloseAllColumnarClustersRequest {
   ExecutionContext execution_context = 1;
+}
+
+// Requests the performer to update the credential on an existing cluster connection.
+// Per the EA RFC, `cluster.credential(newCredential)` replaces the credential used for subsequent requests.
+// The new credential must be the same type as the old one (e.g. JWT -> JWT).
+message SetCredentialRequest {
+  ExecutionContextClusterLevel execution_context = 1;
+  ClusterNewInstanceRequest.Credential credential = 2;
 }

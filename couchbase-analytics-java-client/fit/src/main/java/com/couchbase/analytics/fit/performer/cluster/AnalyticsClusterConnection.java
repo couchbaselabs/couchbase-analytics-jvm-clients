@@ -37,68 +37,76 @@ public class AnalyticsClusterConnection {
     this.request = request;
     this.onClusterConnectionClose = onClusterConnectionClose;
 
-    if (!request.hasOptions()) {
-      this.cluster = Cluster.newInstance(
-        request.getConnectionString(),
-        Credential.of(
-          request.getCredential().getUsernameAndPassword().getUsername(),
-          request.getCredential().getUsernameAndPassword().getPassword()
-        )
-      );
-    } else {
-      var options = request.getOptions();
+    this.cluster = Cluster.newInstance(
+      request.getConnectionString(),
+      credentialFromProto(request.getCredential()),
+      env -> {
+        if (!request.hasOptions()) {
+          return;
+        }
+        var options = request.getOptions();
 
-      if (options.hasDeserializer()) {
-        // Ignore. FIT driver can't specify alternate deserializers in a meaningful way.
-      }
+        if (options.hasDeserializer()) {
+          // Ignore. FIT driver can't specify alternate deserializers in a meaningful way.
+        }
 
-      this.cluster = Cluster.newInstance(
-        request.getConnectionString(),
-        Credential.of(
-          request.getCredential().getUsernameAndPassword().getUsername(),
-          request.getCredential().getUsernameAndPassword().getPassword()
-        ),
-        env -> {
-          env.timeout(timeout -> {
-            if (options.hasTimeout()) {
-              var timeoutOptions = options.getTimeout();
-              if (timeoutOptions.hasConnectTimeout()) {
-                timeout.connectTimeout(Duration.ofSeconds(timeoutOptions.getConnectTimeout().getSeconds()));
-              }
-              if (timeoutOptions.hasDispatchTimeout()) {
-                // todo - check with David if intentional
-                throw new UnsupportedOperationException("dispatchTimeout not exposed in SDK");
-              }
-              if (timeoutOptions.hasQueryTimeout()) {
-                timeout.queryTimeout(Duration.ofSeconds(timeoutOptions.getQueryTimeout().getSeconds()));
-              }
+        env.timeout(timeout -> {
+          if (options.hasTimeout()) {
+            var timeoutOptions = options.getTimeout();
+            if (timeoutOptions.hasConnectTimeout()) {
+              timeout.connectTimeout(Duration.ofSeconds(timeoutOptions.getConnectTimeout().getSeconds()));
             }
-          })
-          .security(sec -> {
-            if (options.hasSecurity()) {
-              var secOptions = options.getSecurity();
-              if (secOptions.hasTrustOnlyCapella()) {
-                sec.trustOnlyCapella();
-              }
-              if (secOptions.hasTrustOnlyPemString()) {
-                sec.trustOnlyPemString(secOptions.getTrustOnlyPemString());
-              }
-              if (secOptions.hasTrustOnlyPlatform()) {
-                sec.trustOnlyJvm();
-              }
-              if (secOptions.hasDisableServerCertificateVerification()) {
-                sec.disableServerCertificateVerification(secOptions.getDisableServerCertificateVerification());
-              }
-              if (secOptions.getCipherSuitesCount() > 0) {
-                sec.cipherSuites(secOptions.getCipherSuitesList());
-              }
+            if (timeoutOptions.hasDispatchTimeout()) {
+              // todo - check with David if intentional
+              throw new UnsupportedOperationException("dispatchTimeout not exposed in SDK");
             }
-          });
-          if (options.hasMaxRetries()) {
-            env.maxRetries(options.getMaxRetries());
+            if (timeoutOptions.hasQueryTimeout()) {
+              timeout.queryTimeout(Duration.ofSeconds(timeoutOptions.getQueryTimeout().getSeconds()));
+            }
+          }
+        })
+        .security(sec -> {
+          if (options.hasSecurity()) {
+            var secOptions = options.getSecurity();
+            if (secOptions.hasTrustOnlyCapella()) {
+              sec.trustOnlyCapella();
+            }
+            if (secOptions.hasTrustOnlyPemString()) {
+              sec.trustOnlyPemString(secOptions.getTrustOnlyPemString());
+            }
+            if (secOptions.hasTrustOnlyPlatform()) {
+              sec.trustOnlyJvm();
+            }
+            if (secOptions.hasDisableServerCertificateVerification()) {
+              sec.disableServerCertificateVerification(secOptions.getDisableServerCertificateVerification());
+            }
+            if (secOptions.getCipherSuitesCount() > 0) {
+              sec.cipherSuites(secOptions.getCipherSuitesList());
+            }
           }
         });
-    }
+        if (options.hasMaxRetries()) {
+          env.maxRetries(options.getMaxRetries());
+        }
+      });
+  }
+
+  /**
+   * Converts a protobuf Credential message to the SDK's Credential type.
+   * Switch is exhaustive on the oneof type case; adding a new variant to the
+   * proto will fail to compile here, which is the point.
+   * <p>
+   * FIT-internal: {@code public} only because {@link com.couchbase.analytics.fit.performer.rpc.JavaAnalyticsService} lives in a sibling package.
+   */
+  public static Credential credentialFromProto(fit.columnar.ClusterNewInstanceRequest.Credential proto) {
+    return switch (proto.getTypeCase()) {
+      case USERNAME_AND_PASSWORD -> Credential.of(
+        proto.getUsernameAndPassword().getUsername(),
+        proto.getUsernameAndPassword().getPassword()
+      );
+      case JWT_AUTH -> Credential.ofJwt(proto.getJwtAuth().getJwt());
+      case TYPE_NOT_SET -> throw new IllegalArgumentException("FIT request did not specify a credential.");
+    };
   }
 
   public Cluster cluster() {

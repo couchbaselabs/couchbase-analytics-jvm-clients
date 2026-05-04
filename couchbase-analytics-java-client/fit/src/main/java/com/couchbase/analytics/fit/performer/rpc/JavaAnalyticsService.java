@@ -29,6 +29,7 @@ import fit.columnar.ClusterNewInstanceRequest;
 import fit.columnar.ColumnarServiceGrpc;
 import fit.columnar.EmptyResultOrFailureResponse;
 import fit.columnar.SdkConnectionError;
+import fit.columnar.SetCredentialRequest;
 import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -127,7 +128,13 @@ public class JavaAnalyticsService extends ColumnarServiceGrpc.ColumnarServiceImp
 
       var clusters = context.clusters();
       LOGGER.info("Dumping {} cluster connections for resource leak troubleshooting:", clusters.size());
-      clusters.forEach((key, value) -> LOGGER.info("Cluster connection {} {}", key, value.request().getCredential().getUsernameAndPassword().getUsername()));
+      clusters.forEach((key, value) -> {
+        var cred = value.request().getCredential();
+        var credDesc = cred.hasUsernameAndPassword()
+          ? cred.getUsernameAndPassword().getUsername()
+          : cred.getTypeCase().name();
+        LOGGER.info("Cluster connection {} {}", key, credDesc);
+      });
 
       responseObserver.onNext(ResultUtil.success(startTime));
     } catch (RuntimeException err) {
@@ -153,6 +160,23 @@ public class JavaAnalyticsService extends ColumnarServiceGrpc.ColumnarServiceImp
     var startTime = startTiming();
     try {
       context.closeAndRemoveAllClusters();
+      responseObserver.onNext(ResultUtil.success(startTime));
+    } catch (RuntimeException err) {
+      responseObserver.onNext(ResultUtil.failure(err, startTime));
+    }
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void setCredential(SetCredentialRequest request, StreamObserver<EmptyResultOrFailureResponse> responseObserver) {
+    var startTime = startTiming();
+    try {
+      var clusterId = request.getExecutionContext().getClusterId();
+      var cc = context.cluster(clusterId);
+      if (cc == null) {
+        throw new IllegalArgumentException("No cluster connection with id: " + clusterId);
+      }
+      cc.cluster().credential(AnalyticsClusterConnection.credentialFromProto(request.getCredential()));
       responseObserver.onNext(ResultUtil.success(startTime));
     } catch (RuntimeException err) {
       responseObserver.onNext(ResultUtil.failure(err, startTime));
