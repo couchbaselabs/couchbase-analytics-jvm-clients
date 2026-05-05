@@ -27,6 +27,7 @@ message ClusterNewInstanceRequest {
       google.protobuf.Duration connect_timeout = 1;
       google.protobuf.Duration dispatch_timeout = 2;
       google.protobuf.Duration query_timeout = 3;
+      google.protobuf.Duration handle_timeout = 4;
     }
 
     optional Deserializer deserializer = 1;
