@@ -80,7 +80,7 @@ public final class TimeoutOptions {
    * @see QueryHandle#fetchStatus
    */
   public TimeoutOptions handleRequestTimeout(@Nullable Duration handleRequestTimeout) {
-    this.handleRequestTimeout = requireNullOrNonNegative(this.handleRequestTimeout, "requestTimeout");
+    this.handleRequestTimeout = requireNullOrNonNegative(handleRequestTimeout, "requestTimeout");
     return this;
   }
 
@@ -123,6 +123,7 @@ public final class TimeoutOptions {
         "queryTimeout=" + queryTimeout +
         ", requestTimeout=" + handleRequestTimeout +
         ", connectTimeout=" + connectTimeout +
+        ", handleRequestTimeout=" + handleRequestTimeout +
         '}';
     }
   }
