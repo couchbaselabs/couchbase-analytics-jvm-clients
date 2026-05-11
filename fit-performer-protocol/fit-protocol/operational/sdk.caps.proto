@@ -149,4 +149,7 @@ enum Caps {
 
   // The SDK supports the collection.getOrNull() API.
   SDK_GET_OR_NULL = 39;
+
+  // The SDK supports the RESUMING status in the result of functions_status() of the eventing management API.
+  SDK_EVENTING_RESUMING_FUNCTION_STATUS = 40;
 }
