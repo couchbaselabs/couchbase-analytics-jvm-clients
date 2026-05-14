@@ -19,10 +19,15 @@ package com.couchbase.analytics.fit.performer.cluster;
 
 import com.couchbase.analytics.client.java.Cluster;
 import com.couchbase.analytics.client.java.Credential;
+import com.couchbase.analytics.fit.performer.common.util.PemUtil;
+import com.couchbase.analytics.fit.performer.rpc.JavaAnalyticsService;
 import com.couchbase.analytics.fit.performer.util.Durations;
+import fit.columnar.ClusterNewInstanceRequest;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.couchbase.analytics.fit.performer.common.util.PemUtil.decodeCertificates;
 
 
 public class AnalyticsClusterConnection {
@@ -105,8 +110,17 @@ public class AnalyticsClusterConnection {
         proto.getUsernameAndPassword().getPassword()
       );
       case JWT_AUTH -> Credential.ofJwt(proto.getJwtAuth().getJwt());
+      case CERTIFICATE_AUTH -> clientCertCredential(proto.getCertificateAuth());
       case TYPE_NOT_SET -> throw new IllegalArgumentException("FIT request did not specify a credential.");
     };
+  }
+
+  private static Credential clientCertCredential(fit.columnar.ClusterNewInstanceRequest.Credential.CertificateAuth keyAndCert) {
+    var key = PemUtil.parseRsaPrivateCrtKey(keyAndCert.getKey());
+    var certChain = decodeCertificates(keyAndCert.getCertBytes().newInput());
+    String password = "password";
+    var keystoreFile = PemUtil.newKeyStore(key, certChain, password);
+    return Credential.fromKeyStore(keystoreFile, password);
   }
 
   public Cluster cluster() {
