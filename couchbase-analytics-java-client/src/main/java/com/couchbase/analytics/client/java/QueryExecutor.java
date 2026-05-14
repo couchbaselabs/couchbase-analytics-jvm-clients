@@ -482,6 +482,13 @@ class QueryExecutor {
         throw new InvalidCredentialException(httpStatusMessage);
       }
 
+      if (response.code() == 404) {
+        throw new QueryNotFoundException(
+          httpStatusMessage + "." +
+            " This could mean the connection string does not point to a compatible Couchbase Enterprise Analytics cluster," +
+            " or it could mean the query result you are referencing has expired or been discarded.");
+      }
+
       if (body == null) {
         maybeThrowSyntheticServiceNotAvailable(response, null);
         throw new AnalyticsException("HTTP response had no body; this is unexpected! " + httpStatusMessage);
@@ -508,9 +515,6 @@ class QueryExecutor {
       }
 
       if (request.method().equals("DELETE")) {
-        if (response.code() == 404) {
-          throw new QueryNotFoundException(httpStatusMessage);
-        }
         if (!response.isSuccessful()) {
           throw new AnalyticsException("DELETE was not successful. " + httpStatusMessage);
         }
@@ -519,12 +523,8 @@ class QueryExecutor {
         String head = bodyInterceptor.getHeadAsString();
         maybeThrowSyntheticServiceNotAvailable(response, head);
 
-        if (response.code() == 404) {
-          throw new QueryNotFoundException("No query found. Result may have expired or been discarded.");
-        }
-
         // Response wasn't a JSON Object with a "requestID" or "createdAt" field :-(
-        throw new AnalyticsException("HTTP body did not matched expected query response format. " + httpStatusMessage + " ; response body = " + head);
+        throw new AnalyticsException("HTTP response body did not match expected query response format; did not have 'requestID' or 'createdAt' fields. Server said:" + httpStatusMessage + " ; response body = " + head);
       }
 
       return parser.result;
